@@ -12,6 +12,9 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 
+#include <asio/io_context.hpp>
+#include <asio/signal_set.hpp>
+
 // VideoCapture specific depdendencies:
 #include <linux/videodev2.h>
 
@@ -194,7 +197,6 @@ std::unique_ptr<VideoCapture> make_video_capture(std::filesystem::path p) {
 
 int main() {
   auto devs = VideoCaptureImpl::enumerate_video4_linux_devices();
-
   cout << "DEBUG: Video4Linux devices:\n";
   for (auto& x : devs) {
     cout << x << "\n";
@@ -209,9 +211,6 @@ int main() {
 
   cout << "DEBUG: videocapture created\n";
 
-  // Use cases:
-  // how to select device? what if I have multiple devices in the system?
-
   capture->print_capabilities();
   auto formats = capture->enumerate_formats();
   if (formats.empty()) {
@@ -220,5 +219,15 @@ int main() {
   }
   capture->select_format(*formats.back());
 
+  // Starting capturing. Starting is resource heavy.
   capture->start();
+
+  asio::io_context ctx;
+  asio::signal_set signals{ctx, SIGINT, SIGTERM};
+  signals.async_wait([&ctx](std::error_code ec, int signal) {
+    cout << "DEBUG: closing app on request\n";
+    ctx.stop();
+  });
+
+  ctx.run();
 }
