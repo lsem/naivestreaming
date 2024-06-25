@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.5)
 project(naivestreaming)
 
+set(CMAKE_CXX_STANDARD 20)
+
 add_compile_options("-fdiagnostics-color=always")
 
 add_subdirectory(vendor/asio)
