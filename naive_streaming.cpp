@@ -5,11 +5,13 @@
 #include <filesystem>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
+#include <sys/mman.h>
 #include <unistd.h>
 
 #include <asio/io_context.hpp>
@@ -18,12 +20,11 @@
 // VideoCapture specific depdendencies:
 #include <linux/videodev2.h>
 
+///////////////////////////////////////////////////////////////////////////////////////
 #include <format>
 #include <string_view>
-
-enum class LogLevel { debug, info, warning, error };
-
 namespace lsem_log_details {
+enum class LogLevel { debug, info, warning, error };
 template <class... Args>
 void print_log(LogLevel level, std::string_view fmt, Args&&... args) {
   auto label_fn = [](LogLevel level) {
@@ -44,14 +45,19 @@ void print_log(LogLevel level, std::string_view fmt, Args&&... args) {
             << std::vformat(fmt, std::make_format_args(args...)) << "\n";
 }
 }  // namespace lsem_log_details
-#define LOG_DEBUG(FmtMsg, ...) \
-  lsem_log_details::print_log(LogLevel::debug, FmtMsg, ##__VA_ARGS__)
-#define LOG_INFO(FmtMsg, ...) \
-  lsem_log_details::print_log(LogLevel::info, FmtMsg, ##__VA_ARGS__)
-#define LOG_WARNING(FmtMsg, ...) \
-  lsem_log_details::print_log(LogLevel::warning, FmtMsg, ##__VA_ARGS__)
-#define LOG_ERROR(FmtMsg, ...) \
-  lsem_log_details::print_log(LogLevel::error, FmtMsg, ##__VA_ARGS__)
+#define LOG_DEBUG(FmtMsg, ...)                                           \
+  lsem_log_details::print_log(lsem_log_details::LogLevel::debug, FmtMsg, \
+                              ##__VA_ARGS__)
+#define LOG_INFO(FmtMsg, ...)                                           \
+  lsem_log_details::print_log(lsem_log_details::LogLevel::info, FmtMsg, \
+                              ##__VA_ARGS__)
+#define LOG_WARNING(FmtMsg, ...)                                           \
+  lsem_log_details::print_log(lsem_log_details::LogLevel::warning, FmtMsg, \
+                              ##__VA_ARGS__)
+#define LOG_ERROR(FmtMsg, ...)                                           \
+  lsem_log_details::print_log(lsem_log_details::LogLevel::error, FmtMsg, \
+                              ##__VA_ARGS__)
+///////////////////////////////////////////////////////////////////////////////////////
 
 using namespace std;
 
@@ -98,6 +104,15 @@ class VideoCapture {
   virtual void stop() = 0;
 };
 
+namespace {
+int xioctl(int fd, int request, void* arg) {
+  int r;
+  do
+    r = ioctl(fd, request, arg);
+  while (-1 == r && EINTR == errno);
+  return r;
+}
+}  // namespace
 // Implenebtation based on Video4Linux.
 // Documentation:
 //  1) https://docs.kernel.org/4.20/media/v4l-drivers/index.html
@@ -124,7 +139,7 @@ class VideoCaptureImpl : public VideoCapture {
     if (close(m_v4l_fd) == -1) {
       LOG_ERROR("ERROR: failed closing v4l descriptor. Ignoring..");
     } else {
-      LOG_ERROR("closed, capture destructed");
+      LOG_DEBUG("closed, capture destructed");
     }
   }
 
@@ -133,7 +148,7 @@ class VideoCaptureImpl : public VideoCapture {
 
     int ret = ioctl(m_v4l_fd, VIDIOC_QUERYCAP, &caps);
     if (ret == -1) {
-      perror("Querying device capabilities");
+      LOG_ERROR("Querying device capabilities: {}", strerror(errno));
       return;
     }
     auto as_cstr = [](auto barr) {
@@ -193,7 +208,7 @@ class VideoCaptureImpl : public VideoCapture {
       const char c = fmtdesc.flags & 1 ? 'C' : ' ';
       const char e = fmtdesc.flags & 2 ? 'E' : ' ';
 
-      printf("%c%c %s\n", c, e, fmtdesc.description);
+      LOG_DEBUG("{}{} {}", c, e, (const char*)fmtdesc.description);
       fmtdesc.index++;
 
       result.emplace_back(std::make_unique<Video4LinuxVideoFormat>(
@@ -230,7 +245,66 @@ class VideoCaptureImpl : public VideoCapture {
       return false;
     }
 
-    LOG_DEBUG("format selected");
+    LOG_DEBUG("Format selected");
+
+    return true;
+  }
+
+  void start_capture() {
+    LOG_DEBUG("Starting capturing");
+
+    struct v4l2_buffer buffer;
+    for (size_t i = 0; i < m_allocated_buffers_count; ++i) {
+      memset(&buffer, 0, sizeof(buffer));
+      buffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+      buffer.memory = V4L2_MEMORY_MMAP;
+      buffer.index = i;
+
+      if (xioctl(m_v4l_fd, VIDIOC_QBUF, &buffer) == -1) {
+        LOG_ERROR("IDIOC_QBUF failed for buff {}: {}", i, strerror(errno));
+        // TODO: handle errors.
+        return;
+      }
+      LOG_DEBUG("Enqued buffer {}", i);
+    }
+    enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    if (xioctl(m_v4l_fd, VIDIOC_STREAMON, &type) == -1) {
+      LOG_ERROR("VIDIOC_STREAMON failed: {}", strerror(errno));
+      // TODO: handle errors.
+      return;
+    }
+
+    LOG_DEBUG("Streaming ON");
+  }
+
+  // Returns true of frame is read successfully.
+  // TODO: write a message explaining this.
+  std::optional<bool> read_frame() {
+    static int frame_num = 0;
+    struct v4l2_buffer buff;
+    memset(&buff, 0, sizeof(buff));
+
+    buff.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    buff.memory = V4L2_MEMORY_MMAP;
+
+    // TODO: write a message explaining what we are doing by this.
+    if (xioctl(m_v4l_fd, VIDIOC_DQBUF, &buff) == -1) {
+      if (errno == EAGAIN) {
+        return false;
+      } else {
+        LOG_ERROR("VIDIOC_DQBUF failed: {}", strerror(errno));
+        return std::nullopt;
+      }
+    }
+
+    LOG_DEBUG("Processing image from buffer ({}) ... (simulated) [{}]",
+              buff.index, frame_num++);
+
+    if (xioctl(m_v4l_fd, VIDIOC_QBUF, &buff) == -1) {
+      LOG_ERROR("VIDIOC_QBUF failed: {}", strerror(errno));
+      // TODO: handle error.
+      return std::nullopt;
+    }
 
     return true;
   }
@@ -241,26 +315,103 @@ class VideoCaptureImpl : public VideoCapture {
     // pr she knows what is available and what is needed, so here should also be
     // a method for querying possibilities.
 
+    LOG_DEBUG("Initializing device buffers");
+
     struct v4l2_requestbuffers reqbuf;
-    struct {
+
+    struct BufferView {
       void* start;
       size_t length;
-    } * buffers;
-    unsigned int i;
+    };
+    vector<BufferView> buffers;
 
     memset(&reqbuf, 0, sizeof(reqbuf));
     reqbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     reqbuf.memory = V4L2_MEMORY_MMAP;
     reqbuf.count = 20;
 
-    // if (-1 == ioctl(fd, VIDIOC_REQBUFS, &reqbuf)) {
-    //   if (errno == EINVAL)
-    //     printf("Video capturing or mmap-streaming is not supported\\n");
-    //   else
-    //     perror("VIDIOC_REQBUFS");
+    if (ioctl(m_v4l_fd, VIDIOC_REQBUFS, &reqbuf) == -1) {
+      if (errno == EINVAL) {
+        LOG_ERROR("Video capturing or mmap-streaming is not supported: {}",
+                  strerror(errno));
+      } else {
+        // TODO: report error via error code.
+        LOG_ERROR("VIDIOC_REQBUFS failed: {}", strerror(errno));
+        return;
+      }
+    }
 
-    //   exit(EXIT_FAILURE);
-    // }
+    if (reqbuf.count < 5) {
+      LOG_ERROR("Failed allocating all requested buffers: {}", strerror(errno));
+      // TODO: report error via error code.
+      return;
+    } else if (reqbuf.count < 20) {
+      LOG_WARNING("Not all buffers have been allocated");
+    }
+
+    buffers.resize(reqbuf.count);
+
+    const size_t allocated_buffers_count = reqbuf.count;
+
+    struct v4l2_buffer buffer;
+    for (size_t i = 0; i < allocated_buffers_count; ++i) {
+      memset(&buffer, 0, sizeof(buffer));
+      buffer.type = reqbuf.type;
+      buffer.memory = V4L2_MEMORY_MMAP;
+      buffer.index = i;
+
+      // Request buffer information
+      if (ioctl(m_v4l_fd, VIDIOC_QUERYBUF, &buffer)) {
+        LOG_ERROR("VIDIOC_QUERYBUF failed for {}: {}", i, strerror(errno));
+        // TODO: report error.
+        return;
+      }
+
+      buffers[i].length = buffer.length;
+      buffers[i].start = mmap(NULL, buffer.length, PROT_READ | PROT_WRITE,
+                              MAP_SHARED, m_v4l_fd, buffer.m.offset);
+      if (buffers[i].start == MAP_FAILED) {
+        LOG_ERROR("mmap of buffer {} failed: {}", i, strerror(errno));
+        // TODO: report error.
+        return;
+      }
+
+      LOG_DEBUG("Mapped buffer {}", i);
+    }
+
+    LOG_DEBUG("Device buffers initialized");
+
+    m_allocated_buffers_count = allocated_buffers_count;
+
+    start_capture();
+
+    // Reading loop.
+    while (true) {
+      fd_set fds;
+      struct timeval tv;
+
+      FD_ZERO(&fds);
+      FD_SET(m_v4l_fd, &fds);
+      tv.tv_sec = 2;
+      tv.tv_usec = 0;
+
+      int r = select(m_v4l_fd + 1, &fds, NULL, NULL, &tv);
+      if (r == -1) {
+        if (r == EINTR) {
+          continue;
+        } else {
+          LOG_ERROR("select failed: {}", r);
+          // TODO: handle error.
+          return;
+        }
+      } else if (r == 0) {
+        LOG_ERROR("select timeout");
+        // TODO: handle error.
+        return;
+      }
+
+      read_frame();
+    }
   }
 
   virtual void stop() override {
@@ -285,6 +436,7 @@ class VideoCaptureImpl : public VideoCapture {
  private:
   std::filesystem::path m_video_dev_fpath;
   int m_v4l_fd{-1};
+  unsigned m_allocated_buffers_count{};
 };
 
 std::unique_ptr<VideoCapture> make_video_capture(std::filesystem::path p) {
