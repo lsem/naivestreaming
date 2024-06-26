@@ -1,3 +1,9 @@
 [submodule "vendor/asio"]
 	path = vendor/asio
 	url = git@github.com:lsem/asio.git
+[submodule "x264"]
+	path = x264
+	url = https://github.com/lsem/x264
+[submodule "vendor/x264"]
+	path = vendor/x264
+	url = https://github.com/lsem/x264
