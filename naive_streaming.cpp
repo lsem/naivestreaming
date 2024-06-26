@@ -20,6 +20,8 @@
 // VideoCapture specific depdendencies:
 #include <linux/videodev2.h>
 
+#include <x264.h>
+
 ///////////////////////////////////////////////////////////////////////////////////////
 #include <format>
 #include <string_view>
@@ -113,11 +115,18 @@ int xioctl(int fd, int request, void* arg) {
   return r;
 }
 }  // namespace
+
+struct BufferView {
+  void* start;
+  size_t length;
+};
+
 // Implenebtation based on Video4Linux.
 // Documentation:
 //  1) https://docs.kernel.org/4.20/media/v4l-drivers/index.html
-//  2) https://github.com/kmdouglass/v4l2-examples
-//  3)
+//  2) https://lwn.net/Articles/240667/
+//  3) https://github.com/kmdouglass/v4l2-examples
+//  4)
 //  https://stackoverflow.com/questions/10634537/v4l2-difference-between-enque-deque-and-queueing-of-the-buffer
 class VideoCaptureImpl : public VideoCapture {
  public:
@@ -287,7 +296,10 @@ class VideoCaptureImpl : public VideoCapture {
     buff.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     buff.memory = V4L2_MEMORY_MMAP;
 
-    // TODO: write a message explaining what we are doing by this.
+    // read_frame() expected to be called once select reported ready state which
+    // means that there are buffers (at least one) ready with frame data in
+    // outgoing queues of v4l2 driver. VIDIOC_DQBUF claims the buffer out of v4l
+    // driver's queue.
     if (xioctl(m_v4l_fd, VIDIOC_DQBUF, &buff) == -1) {
       if (errno == EAGAIN) {
         return false;
@@ -297,9 +309,23 @@ class VideoCaptureImpl : public VideoCapture {
       }
     }
 
+    // NOTE:
+    // Processing image means that we may want to do some automated post
+    // processing of videostream in order to make things better visible.
+    // Efficient architecture for that would be DMA from video camera to
+    // something available for GPU processing. Withuot this, data transfer to
+    // GPU and back will consume considerable amount of data bus bandwidth.
+    // The focus of naivestreaming project is not processing so we leave this
+    // question open to realworld applications where corresponding hardware can
+    // be present.
+
+    // So the next step is to feed this into x264.
+
     LOG_DEBUG("Processing image from buffer ({}) ... (simulated) [{}]",
               buff.index, frame_num++);
 
+    // After processing we put the buffer back with VIDIOC_QBUF so it can be
+    // used.
     if (xioctl(m_v4l_fd, VIDIOC_QBUF, &buff) == -1) {
       LOG_ERROR("VIDIOC_QBUF failed: {}", strerror(errno));
       // TODO: handle error.
@@ -310,6 +336,8 @@ class VideoCaptureImpl : public VideoCapture {
   }
 
   virtual void start() override {
+    assert(m_buffers.empty());
+
     // we need to set video format but first we need to get it.
     // In real system, this is something that stuff will hard code, because he
     // pr she knows what is available and what is needed, so here should also be
@@ -318,12 +346,6 @@ class VideoCaptureImpl : public VideoCapture {
     LOG_DEBUG("Initializing device buffers");
 
     struct v4l2_requestbuffers reqbuf;
-
-    struct BufferView {
-      void* start;
-      size_t length;
-    };
-    vector<BufferView> buffers;
 
     memset(&reqbuf, 0, sizeof(reqbuf));
     reqbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -349,7 +371,7 @@ class VideoCaptureImpl : public VideoCapture {
       LOG_WARNING("Not all buffers have been allocated");
     }
 
-    buffers.resize(reqbuf.count);
+    m_buffers.resize(reqbuf.count);
 
     const size_t allocated_buffers_count = reqbuf.count;
 
@@ -367,10 +389,10 @@ class VideoCaptureImpl : public VideoCapture {
         return;
       }
 
-      buffers[i].length = buffer.length;
-      buffers[i].start = mmap(NULL, buffer.length, PROT_READ | PROT_WRITE,
-                              MAP_SHARED, m_v4l_fd, buffer.m.offset);
-      if (buffers[i].start == MAP_FAILED) {
+      m_buffers[i].length = buffer.length;
+      m_buffers[i].start = mmap(NULL, buffer.length, PROT_READ | PROT_WRITE,
+                                MAP_SHARED, m_v4l_fd, buffer.m.offset);
+      if (m_buffers[i].start == MAP_FAILED) {
         LOG_ERROR("mmap of buffer {} failed: {}", i, strerror(errno));
         // TODO: report error.
         return;
@@ -397,7 +419,7 @@ class VideoCaptureImpl : public VideoCapture {
 
       int r = select(m_v4l_fd + 1, &fds, NULL, NULL, &tv);
       if (r == -1) {
-        if (r == EINTR) {
+        if (errno == EINTR) {
           continue;
         } else {
           LOG_ERROR("select failed: {}", r);
@@ -410,7 +432,15 @@ class VideoCaptureImpl : public VideoCapture {
         return;
       }
 
-      read_frame();
+      if (auto maybe_res = read_frame(); maybe_res) {
+        if (!*maybe_res) {
+          // TODO: *************** ???????????? ******************
+        }
+      } else {
+        LOG_ERROR("read_frame failed");
+        // TODO: handle error.
+        return;
+      }
     }
   }
 
@@ -437,6 +467,9 @@ class VideoCaptureImpl : public VideoCapture {
   std::filesystem::path m_video_dev_fpath;
   int m_v4l_fd{-1};
   unsigned m_allocated_buffers_count{};
+
+  // Buffers we are sharing with v4l driver.
+  vector<BufferView> m_buffers;
 };
 
 std::unique_ptr<VideoCapture> make_video_capture(std::filesystem::path p) {
@@ -483,4 +516,9 @@ int main() {
   });
 
   ctx.run();
+
+  x264_param_t param;
+  /* Get default params for preset/tuning */
+  if (x264_param_default_preset(&param, "medium", NULL) < 0)
+      LOG_ERROR("x264_param_default_preset failed");
 }
