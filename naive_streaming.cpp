@@ -20,46 +20,9 @@
 // VideoCapture specific depdendencies:
 #include <linux/videodev2.h>
 
-#include <x264.h>
-
-///////////////////////////////////////////////////////////////////////////////////////
-#include <format>
-#include <string_view>
-namespace lsem_log_details {
-enum class LogLevel { debug, info, warning, error };
-template <class... Args>
-void print_log(LogLevel level, std::string_view fmt, Args&&... args) {
-  auto label_fn = [](LogLevel level) {
-    switch (level) {
-      case LogLevel::debug:
-        return "DEBUG";
-      case LogLevel::info:
-        return "INFO";
-      case LogLevel::warning:
-        return "WARNING";
-      case LogLevel::error:
-        return "ERROR";
-      default:
-        return "LogLevel::<unknown>";
-    }
-  };
-  std::cout << label_fn(level) << ": "
-            << std::vformat(fmt, std::make_format_args(args...)) << "\n";
-}
-}  // namespace lsem_log_details
-#define LOG_DEBUG(FmtMsg, ...)                                           \
-  lsem_log_details::print_log(lsem_log_details::LogLevel::debug, FmtMsg, \
-                              ##__VA_ARGS__)
-#define LOG_INFO(FmtMsg, ...)                                           \
-  lsem_log_details::print_log(lsem_log_details::LogLevel::info, FmtMsg, \
-                              ##__VA_ARGS__)
-#define LOG_WARNING(FmtMsg, ...)                                           \
-  lsem_log_details::print_log(lsem_log_details::LogLevel::warning, FmtMsg, \
-                              ##__VA_ARGS__)
-#define LOG_ERROR(FmtMsg, ...)                                           \
-  lsem_log_details::print_log(lsem_log_details::LogLevel::error, FmtMsg, \
-                              ##__VA_ARGS__)
-///////////////////////////////////////////////////////////////////////////////////////
+#include "encoder.hpp"
+#include "log.hpp"
+#include "types.hpp"
 
 using namespace std;
 
@@ -116,11 +79,6 @@ int xioctl(int fd, int request, void* arg) {
 }
 }  // namespace
 
-struct BufferView {
-  void* start;
-  size_t length;
-};
-
 // Implenebtation based on Video4Linux.
 // Documentation:
 //  1) https://docs.kernel.org/4.20/media/v4l-drivers/index.html
@@ -130,11 +88,14 @@ struct BufferView {
 //  https://stackoverflow.com/questions/10634537/v4l2-difference-between-enque-deque-and-queueing-of-the-buffer
 class VideoCaptureImpl : public VideoCapture {
  public:
-  explicit VideoCaptureImpl(std::filesystem::path video_dev_fpath)
-      : m_video_dev_fpath(std::move(video_dev_fpath)) {}
+  explicit VideoCaptureImpl(std::filesystem::path video_dev_fpath,
+                            std::function<void(BufferView)> on_frame)
+      : m_video_dev_fpath(std::move(video_dev_fpath)),
+        m_on_frame(std::move(on_frame)) {}
 
   bool initialize() {
-    // What if we enumrate video devices first and let user select the device.
+    // What if we enumrate video devices first and let user select the
+    // device.
     m_v4l_fd = open(m_video_dev_fpath.c_str(), O_RDWR);
     if (m_v4l_fd == -1) {
       LOG_ERROR("failed opening /dev/video0: {}", strerror(errno));
@@ -233,8 +194,8 @@ class VideoCaptureImpl : public VideoCapture {
     struct v4l2_format fmt = {0};
     fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
-    // TODO: once we implement real type erasure, we will not need dynamic cast
-    // and RTTI dependency anymore.
+    // TODO: once we implement real type erasure, we will not need dynamic
+    // cast and RTTI dependency anymore.
     auto* p = dynamic_cast<const Video4LinuxVideoFormat*>(&f);
     if (!p) {
       LOG_ERROR("passed wrong video format, unrelated type: {}",
@@ -242,8 +203,8 @@ class VideoCaptureImpl : public VideoCapture {
       return false;
     }
 
-    // TODO: why this must be hardcoded? I guess it can be part of public part
-    // of FormatSpec.
+    // TODO: why this must be hardcoded? I guess it can be part of public
+    // part of FormatSpec.
     fmt.fmt.pix.width = f.basic.width;
     fmt.fmt.pix.height = f.basic.height;
     fmt.fmt.pix.pixelformat = p->pixel_format;
@@ -296,10 +257,10 @@ class VideoCaptureImpl : public VideoCapture {
     buff.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     buff.memory = V4L2_MEMORY_MMAP;
 
-    // read_frame() expected to be called once select reported ready state which
-    // means that there are buffers (at least one) ready with frame data in
-    // outgoing queues of v4l2 driver. VIDIOC_DQBUF claims the buffer out of v4l
-    // driver's queue.
+    // read_frame() expected to be called once select reported ready state
+    // which means that there are buffers (at least one) ready with frame
+    // data in outgoing queues of v4l2 driver. VIDIOC_DQBUF claims the
+    // buffer out of v4l driver's queue.
     if (xioctl(m_v4l_fd, VIDIOC_DQBUF, &buff) == -1) {
       if (errno == EAGAIN) {
         return false;
@@ -313,16 +274,17 @@ class VideoCaptureImpl : public VideoCapture {
     // Processing image means that we may want to do some automated post
     // processing of videostream in order to make things better visible.
     // Efficient architecture for that would be DMA from video camera to
-    // something available for GPU processing. Withuot this, data transfer to
-    // GPU and back will consume considerable amount of data bus bandwidth.
-    // The focus of naivestreaming project is not processing so we leave this
-    // question open to realworld applications where corresponding hardware can
-    // be present.
+    // something available for GPU processing. Withuot this, data transfer
+    // to GPU and back will consume considerable amount of data bus
+    // bandwidth. The focus of naivestreaming project is not processing so
+    // we leave this question open to realworld applications where
+    // corresponding hardware can be present.
 
     // So the next step is to feed this into x264.
 
     LOG_DEBUG("Processing image from buffer ({}) ... (simulated) [{}]",
               buff.index, frame_num++);
+    process_frame(m_buffers[buff.index]);
 
     // After processing we put the buffer back with VIDIOC_QBUF so it can be
     // used.
@@ -339,9 +301,9 @@ class VideoCaptureImpl : public VideoCapture {
     assert(m_buffers.empty());
 
     // we need to set video format but first we need to get it.
-    // In real system, this is something that stuff will hard code, because he
-    // pr she knows what is available and what is needed, so here should also be
-    // a method for querying possibilities.
+    // In real system, this is something that stuff will hard code, because
+    // he pr she knows what is available and what is needed, so here should
+    // also be a method for querying possibilities.
 
     LOG_DEBUG("Initializing device buffers");
 
@@ -463,6 +425,15 @@ class VideoCaptureImpl : public VideoCapture {
     return result;
   }
 
+  void process_frame(const BufferView& buff) {
+    // The point of processing is to encode a frame and pass it to
+    // downstream pipeline which is going to be either a file or a network.
+
+      m_on_frame(buff);
+
+    // TODO: this looks like a part of encoder one time initialization.
+  }
+
  private:
   std::filesystem::path m_video_dev_fpath;
   int m_v4l_fd{-1};
@@ -470,10 +441,15 @@ class VideoCaptureImpl : public VideoCapture {
 
   // Buffers we are sharing with v4l driver.
   vector<BufferView> m_buffers;
+
+  std::function<void(BufferView)> m_on_frame;
 };
 
-std::unique_ptr<VideoCapture> make_video_capture(std::filesystem::path p) {
-  auto impl = std::make_unique<VideoCaptureImpl>(std::move(p));
+std::unique_ptr<VideoCapture> make_video_capture(
+    std::filesystem::path p,
+    std::function<void(BufferView)> on_frame) {
+  auto impl =
+      std::make_unique<VideoCaptureImpl>(std::move(p), std::move(on_frame));
   if (!impl->initialize()) {
     LOG_ERROR("failed initializing video capture");
     return nullptr;
@@ -481,7 +457,16 @@ std::unique_ptr<VideoCapture> make_video_capture(std::filesystem::path p) {
   return impl;
 }
 
+// What is a challange of implementing RTP/RTCP having only ASIO.
+// Not only it should give us some
+
 int main() {
+  auto encoder = make_encoder();
+  if (!encoder) {
+    LOG_ERROR("failed creating encoder");
+    return -1;
+  }
+
   auto devs = VideoCaptureImpl::enumerate_video4_linux_devices();
   LOG_DEBUG("Video4Linux devices:");
   for (auto& x : devs) {
@@ -489,7 +474,9 @@ int main() {
   }
 
   cout << "DEBUG: selecting first device in a list: " << devs.front() << "\n";
-  auto capture = make_video_capture(devs.front());
+  auto capture = make_video_capture(devs.front(), [&encoder](BufferView buff) {
+    encoder->process_frame(buff);
+  });
   if (!capture) {
     LOG_ERROR("failed creating videocapture. Exiting..");
     return -1;
@@ -516,9 +503,4 @@ int main() {
   });
 
   ctx.run();
-
-  x264_param_t param;
-  /* Get default params for preset/tuning */
-  if (x264_param_default_preset(&param, "medium", NULL) < 0)
-      LOG_ERROR("x264_param_default_preset failed");
 }
