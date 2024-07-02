@@ -1,3 +1,18 @@
-# Additional Resources on this topic
 
-https://www.coursera.org/learn/digital?irclickid=TFQy:32CQxyKUSF3qBQLiyXIUkC02cygN0cGU80&irgwc=1&utm_medium=partners&utm_source=impact&utm_campaign=1301558&utm_content=b2c#modules
+
+1. https://www.coursera.org/learn/digital?irclickid=TFQy:32CQxyKUSF3qBQLiyXIUkC02cygN0cGU80&irgwc=1&utm_medium=partners&utm_source=impact&utm_campaign=1301558&utm_content=b2c#modules
+2. https://www.lighterra.com/papers/videoencodingh264/
+3. https://x264-devel.videolan.narkive.com/FWCJUe71/patch-control-of-maximum-nalu-size-multi-sclicing
+4. RTP Payload Format for H.264 Video: https://datatracker.ietf.org/doc/html/rfc3984
+5. https://rsaxvc.net/blog/2021/8/18/Low_Latency_Video_-_Encoder.html
+6. https://en.wikipedia.org/wiki/Flexible_Macroblock_Ordering
+7. https://www.reddit.com/r/embedded/comments/ave65k/lowlatency_h264_encoding_and_streaming/
+8. https://medium.com/@olesyakrindach/low-latency-video-stream-without-tears-ff096e83da83
+9. https://gs-tech.co.il/low-latency-video-encoder-hevc-h-265-h-264/
+10. Dynamic rate control: https://x264-devel.videolan.narkive.com/jqizK2tm/x264-dynamic-rate-control
+
+Problem Oriented x264 modification to optimize CPU speed:
+https://www.researchgate.net/publication/258807794_Aerial_Video_Encoding_Optimization_Based_On_x264
+
+Document explaining H264:
+http://www.staroceans.org/documents/h264.pdf
