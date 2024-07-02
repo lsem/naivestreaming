@@ -165,6 +165,8 @@ class VideoCaptureImpl : public VideoCapture {
     PROCESS_CAP(V4L2_CAP_IO_MC);
     PROCESS_CAP(V4L2_CAP_DEVICE_CAPS);
 #undef PROCESS_CAP
+
+    // TODO: check caps!
   }
 
   virtual vector<std::unique_ptr<AbstractVideoFormatSpec>> enumerate_formats()
@@ -182,8 +184,28 @@ class VideoCaptureImpl : public VideoCapture {
       fmtdesc.index++;
 
       result.emplace_back(std::make_unique<Video4LinuxVideoFormat>(
-          Video4LinuxVideoFormat::Basic{.width = 320, .height = 200},
+          Video4LinuxVideoFormat::Basic{.width = 1280, .height = 720},
           fmtdesc.pixelformat));
+      // result.back()->basic.width = frmsize.discrete.width; //
+      // result.back()->basic.height = frmsize.discrete.height;
+      // result.back()->basic.width = 100;
+      // result.back()->basic.height = 200;
+
+      struct v4l2_frmsizeenum frmsize {};
+      frmsize.pixel_format = fmtdesc.pixelformat;
+      frmsize.index = 0;
+      while (ioctl(m_v4l_fd, VIDIOC_ENUM_FRAMESIZES, &frmsize) >= 0) {
+        if (frmsize.type == V4L2_FRMSIZE_TYPE_DISCRETE) {
+          LOG_DEBUG("Frame size: {}x{}", frmsize.discrete.width,
+                    frmsize.discrete.height);
+        } else if (frmsize.type == V4L2_FRMSIZE_TYPE_STEPWISE) {
+          LOG_DEBUG("Frame size (stepwise): {}x{}", frmsize.stepwise.max_width,
+                    frmsize.stepwise.max_height);
+        } else {
+          LOG_WARNING("Other framesize type");
+        }
+        frmsize.index++;
+      }
     }
 
     return result;
@@ -282,8 +304,8 @@ class VideoCaptureImpl : public VideoCapture {
 
     // So the next step is to feed this into x264.
 
-    LOG_DEBUG("Processing image from buffer ({}) ... (simulated) [{}]",
-              buff.index, frame_num++);
+    // LOG_DEBUG("Processing image from buffer ({}) ... (simulated) [{}]",
+    //           buff.index, frame_num++);
     process_frame(m_buffers[buff.index]);
 
     // After processing we put the buffer back with VIDIOC_QBUF so it can be
@@ -429,7 +451,7 @@ class VideoCaptureImpl : public VideoCapture {
     // The point of processing is to encode a frame and pass it to
     // downstream pipeline which is going to be either a file or a network.
 
-      m_on_frame(buff);
+    m_on_frame(buff);
 
     // TODO: this looks like a part of encoder one time initialization.
   }
@@ -460,40 +482,69 @@ std::unique_ptr<VideoCapture> make_video_capture(
 // What is a challange of implementing RTP/RTCP having only ASIO.
 // Not only it should give us some
 
+class Application : public EncoderClient {
+ public:
+  bool initialize() {
+    m_encoder = make_encoder(*this);
+    if (!m_encoder) {
+      LOG_ERROR("Failed creating encoder");
+      return false;
+    }
+
+    auto devs = VideoCaptureImpl::enumerate_video4_linux_devices();
+    LOG_DEBUG("Video4Linux devices:");
+    for (auto& x : devs) {
+      cout << x << "\n";
+    }
+
+    m_capture = make_video_capture(devs.front(), [this](BufferView buff) {
+      m_encoder->process_frame(buff);
+    });
+    if (!m_capture) {
+      LOG_ERROR("Failed creating videocapture");
+      return -1;
+    }
+
+    m_capture->print_capabilities();
+    auto formats = m_capture->enumerate_formats();
+    if (formats.empty()) {
+      LOG_ERROR("no available video formats");
+      return -1;
+    }
+    // TODO: find format we really want and need instead of random last one.
+    m_capture->select_format(*formats.back());
+
+    return true;
+  }
+
+  virtual void on_frame_started() override {
+    LOG_DEBUG("Application: Frame started");
+  }
+  virtual void on_frame_ended() override {
+    LOG_DEBUG("Application: Frame finished");
+  }
+  virtual void on_nal_encoded(const uint8_t* data, size_t data_size) override {
+    LOG_DEBUG("Application: sending NAL over UDP");
+  }
+
+  void start_streaming() {
+    LOG_INFO("Starting Streaming..");
+    m_capture->start();
+  }
+
+ private:
+  std::unique_ptr<Encoder> m_encoder;
+  std::unique_ptr<VideoCapture> m_capture;
+};
+
 int main() {
-  auto encoder = make_encoder();
-  if (!encoder) {
-    LOG_ERROR("failed creating encoder");
+  Application app;
+  if (!app.initialize()) {
+    LOG_ERROR("Failed initializating app. Exiting..");
     return -1;
   }
 
-  auto devs = VideoCaptureImpl::enumerate_video4_linux_devices();
-  LOG_DEBUG("Video4Linux devices:");
-  for (auto& x : devs) {
-    cout << x << "\n";
-  }
-
-  cout << "DEBUG: selecting first device in a list: " << devs.front() << "\n";
-  auto capture = make_video_capture(devs.front(), [&encoder](BufferView buff) {
-    encoder->process_frame(buff);
-  });
-  if (!capture) {
-    LOG_ERROR("failed creating videocapture. Exiting..");
-    return -1;
-  }
-
-  cout << "DEBUG: videocapture created\n";
-
-  capture->print_capabilities();
-  auto formats = capture->enumerate_formats();
-  if (formats.empty()) {
-    LOG_ERROR("no available video formats");
-    return -1;
-  }
-  capture->select_format(*formats.back());
-
-  // Starting capturing. Starting is resource heavy.
-  capture->start();
+  app.start_streaming();
 
   asio::io_context ctx;
   asio::signal_set signals{ctx, SIGINT, SIGTERM};
