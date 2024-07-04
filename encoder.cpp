@@ -4,6 +4,7 @@
 #include <x264.h>
 #include <cassert>
 #include <mutex>
+#include <vector>
 
 class EncoderImpl : public Encoder {
  public:
@@ -57,16 +58,22 @@ class EncoderImpl : public Encoder {
     param.b_annexb = 1;
     param.nalu_process = [](x264_t* h, x264_nal_t* nal, void* opaque) {
       auto this_ = static_cast<EncoderImpl*>(opaque);
+      assert((nal->i_payload * 3) / 2 + 5 + 64 <
+             this_->m_nal_encoding_buff.size());
+      x264_nal_encode(h, this_->m_nal_encoding_buff.data(), nal);
 
-      // In order to make client life simpler and not burden it with additional
-      // locking lets provide serialized callback notifications as guarantee and
-      // see if it works. It should, because I expect that application will just
-      // copy NAL into a buffer and pass it into some sort of output queue or
-      // even into the socket buffer. Anyways, this should be profiled before
-      // planning any optimization.
+      // In order to make client life simpler and not burden it with
+      // additional locking lets provide serialized callback notifications
+      // as guarantee and see if it works. It should, because I expect that
+      // application will just copy NAL into a buffer and pass it into some
+      // sort of output queue or even into the socket buffer. Anyways, this
+      // should be profiled before planning any optimization.
       std::lock_guard lck{this_->m_client_notification_lock};
       this_->m_client.on_nal_encoded(nal->p_payload, nal->i_payload);
     };
+
+    // TODO: calculate this value correctly.
+    m_nal_encoding_buff.resize(1920 * 1080 * 10);
 
     if (x264_param_apply_profile(&param, "high422") < 0) {
       LOG_ERROR("Failed applying profile (second)");
@@ -116,6 +123,7 @@ class EncoderImpl : public Encoder {
     LOG_DEBUG("Encoder settings:");
     LOG_DEBUG("Threads: {}", param.i_threads);
     LOG_DEBUG("Sliced Threads: {}", param.b_sliced_threads);
+    LOG_DEBUG("FPS: {}", param.i_fps_num);
 
     // Check parameters needed for live streaming
     assert(max_delayed_frames == 1);
@@ -161,6 +169,7 @@ class EncoderImpl : public Encoder {
   std::unique_ptr<x264_picture_t> m_pic{};
   int m_frame{};
   std::mutex m_client_notification_lock;
+  std::vector<uint8_t> m_nal_encoding_buff;
 };
 
 std::unique_ptr<Encoder> make_encoder(EncoderClient& client) {
