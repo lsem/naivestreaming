@@ -222,7 +222,7 @@ class VideoCaptureImpl : public VideoCapture {
       return;
     }
 
-    LOG_DEBUG("Streaming ON");
+    LOG_DEBUG("Video capture streaming ON");
   }
 
   // Returns true of frame is read successfully.
@@ -347,9 +347,9 @@ class VideoCaptureImpl : public VideoCapture {
 
     start_capture();
 
-    m_working_thread = std::thread{[this] {
+    m_working_thread = std::jthread{[this](std::stop_token stoken) {
       // Reading loop.
-      while (true) {
+      while (!stoken.stop_requested()) {
         fd_set fds;
         struct timeval tv;
 
@@ -383,11 +383,16 @@ class VideoCaptureImpl : public VideoCapture {
           return;
         }
       }
+      LOG_DEBUG("Capture worker thread has stopped");
     }};
   }
 
   virtual void stop() override {
-    //..n
+    if (m_working_thread.joinable()) {
+      LOG_DEBUG("Requesting worker thread to stop");
+      m_working_thread.request_stop();
+      m_working_thread.join();
+    }
   }
 
  private:
@@ -397,7 +402,7 @@ class VideoCaptureImpl : public VideoCapture {
   // Buffers we are sharing with v4l driver.
   std::vector<BufferView> m_buffers;
   std::function<void(BufferView)> m_on_frame;
-  std::thread m_working_thread;
+  std::jthread m_working_thread;
 };
 
 // TODO: make it a free function.
