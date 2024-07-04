@@ -11,7 +11,11 @@ include(vendor/x264-superbuild.cmake)
 
 set(SRC
   naive_streaming.cpp
-  encoder.cpp)
+  video_capture.cpp
+  encoder.cpp
+  udp_transmit.cpp
+  udp_receive.cpp
+  stun_client.cpp)
 
 add_executable(naivestreaming ${SRC})
 target_compile_options(naivestreaming PUBLIC "-fsanitize=address")

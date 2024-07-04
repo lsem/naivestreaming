@@ -14,5 +14,14 @@
 Problem Oriented x264 modification to optimize CPU speed:
 https://www.researchgate.net/publication/258807794_Aerial_Video_Encoding_Optimization_Based_On_x264
 
-Document explaining H264:
+Document explaining H264
 http://www.staroceans.org/documents/h264.pdf
+
+STUN RFC
+https://datatracker.ietf.org/doc/html/rfc3489
+
+Decoder with slicing support
+https://github.com/tvlabs/edge264
+
+YUV player
+https://github.com/IENT/YUView
