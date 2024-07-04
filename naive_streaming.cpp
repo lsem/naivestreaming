@@ -1,5 +1,6 @@
 
 #include <asio/io_context.hpp>
+#include <asio/signal_set.hpp>
 
 #include "encoder.hpp"
 #include "log.hpp"
@@ -114,6 +115,8 @@ class Application : public EncoderClient, public UDP_ReceiveListener {
     });
   }
 
+  void stop() { m_capture->stop(); }
+
  public:  // UDP_ReceiveListener
   virtual void on_packet_received(VideoPacket p) override {
     // ..
@@ -141,6 +144,19 @@ int main() {
       LOG_ERROR("Failed starting streaming: {}", ec.message());
       std::exit(1);
     }
+  });
+
+  asio::signal_set signals{ctx, SIGTERM, SIGINT};
+  signals.async_wait([&app, &ctx](std::error_code ec, int signal) {
+    if (ec) {
+      LOG_ERROR("Error in signals handler");
+      std::quick_exit(1);
+      return;
+    }
+    LOG_DEBUG("Got signal {}", signal);
+    // TODO: stop needs to accept timeout.
+    app.stop();
+    ctx.stop();
   });
 
   asio::io_context::work w{ctx};
