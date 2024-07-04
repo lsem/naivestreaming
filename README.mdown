@@ -1,0 +1,13 @@
+# NaiveStreaming
+
+Streaming pipeline implemented for educational purposes.
+Incorporates video4linux, UDP, x264.
+
+# Compilation
+
+You will need c++20 compiler
+
+```
+CC=gcc-13 CXX=g++-13 cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -GNinja ..
+```
+
