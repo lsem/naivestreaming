@@ -61,11 +61,16 @@ class VideoCaptureImpl : public VideoCapture {
   }
 
  public:
-  virtual ~VideoCaptureImpl() override {
-    if (close(m_v4l_fd) == -1) {
-      LOG_ERROR("ERROR: failed closing v4l descriptor. Ignoring..");
-    } else {
-      LOG_DEBUG("closed, capture destructed");
+  virtual ~VideoCaptureImpl() override { close_v4l_fd(); }
+
+  void close_v4l_fd() {
+    if (m_v4l_fd != -1) {
+      if (close(m_v4l_fd) == -1) {
+        LOG_ERROR("ERROR: failed closing v4l descriptor. Ignoring..");
+      } else {
+        LOG_DEBUG("closed, capture destructed");
+        m_v4l_fd = -1;
+      }
     }
   }
 
@@ -225,6 +230,9 @@ class VideoCaptureImpl : public VideoCapture {
     LOG_DEBUG("Video capture streaming ON");
   }
 
+  bool is_closing() const {
+    return m_v4l_fd == -1;
+  }
   // Returns true of frame is read successfully.
   // TODO: write a message explaining this.
   std::optional<bool> read_frame() {
@@ -240,8 +248,11 @@ class VideoCaptureImpl : public VideoCapture {
     // data in outgoing queues of v4l2 driver. VIDIOC_DQBUF claims the
     // buffer out of v4l driver's queue.
     if (xioctl(m_v4l_fd, VIDIOC_DQBUF, &buff) == -1) {
+      if (is_closing()) {
+        return std::nullopt;
+      }
       if (errno == EAGAIN) {
-        return false;
+        return std::nullopt;
       } else {
         LOG_ERROR("VIDIOC_DQBUF failed: {}", strerror(errno));
         return std::nullopt;
@@ -267,6 +278,10 @@ class VideoCaptureImpl : public VideoCapture {
     // After processing we put the buffer back with VIDIOC_QBUF so it can be
     // used.
     if (xioctl(m_v4l_fd, VIDIOC_QBUF, &buff) == -1) {
+      if (is_closing()) {
+        return std::nullopt;
+      }
+
       LOG_ERROR("VIDIOC_QBUF failed: {}", strerror(errno));
       // TODO: handle error.
       return std::nullopt;
@@ -377,7 +392,7 @@ class VideoCaptureImpl : public VideoCapture {
           if (!*maybe_res) {
             // TODO: *************** ???????????? ******************
           }
-        } else {
+        } else if (!is_closing()) {
           LOG_ERROR("read_frame failed");
           // TODO: handle error.
           return;
@@ -391,6 +406,8 @@ class VideoCaptureImpl : public VideoCapture {
     if (m_working_thread.joinable()) {
       LOG_DEBUG("Requesting worker thread to stop");
       m_working_thread.request_stop();
+      // Closing v4l to unblock select.
+      close_v4l_fd();
       m_working_thread.join();
     }
   }
