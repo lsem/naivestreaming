@@ -7,3 +7,6 @@
 [submodule "vendor/x264"]
 	path = vendor/x264
 	url = https://github.com/lsem/x264
+[submodule "vendor/edge264"]
+	path = vendor/edge264
+	url = git@github.com:lsem/edge264.git

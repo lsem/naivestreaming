@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD 20)
 add_compile_options("-fdiagnostics-color=always")
 
 add_subdirectory(vendor/asio)
+#add_subdirectory(vendor/edge264)
 
 include(vendor/x264-superbuild.cmake)
 
