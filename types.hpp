@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <system_error>
+#include <cstdint>
 
 struct BufferView {
   void* start;

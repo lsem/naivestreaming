@@ -2,6 +2,7 @@
 #include <asio/io_context.hpp>
 #include <asio/signal_set.hpp>
 
+#include "decoder.hpp"
 #include "encoder.hpp"
 #include "log.hpp"
 #include "types.hpp"
@@ -30,6 +31,12 @@ class Application : public EncoderClient, public UDP_ReceiveListener {
     m_encoder = make_encoder(*this);
     if (!m_encoder) {
       LOG_ERROR("Failed creating encoder");
+      return false;
+    }
+
+    m_decoder = make_decoder();
+    if (!m_decoder) {
+      LOG_ERROR("Failed creating decoder");
       return false;
     }
 
@@ -119,12 +126,13 @@ class Application : public EncoderClient, public UDP_ReceiveListener {
 
  public:  // UDP_ReceiveListener
   virtual void on_packet_received(VideoPacket p) override {
-    // ..
+    m_decoder->decode_packet(std::move(p));
   }
 
  private:
   asio::io_context& m_ctx;
   std::unique_ptr<Encoder> m_encoder;
+  std::unique_ptr<Decoder> m_decoder;
   std::unique_ptr<VideoCapture> m_capture;
   std::unique_ptr<UDP_Transmit> m_udp_transmit;
   std::unique_ptr<UDP_Receive> m_udp_receive;
