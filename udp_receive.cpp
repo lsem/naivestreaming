@@ -34,9 +34,14 @@ class UDP_ReceiveImpl : public UDP_Receive {
     return true;
   }
 
-  virtual void start(UDP_ReceiveListener&) override { receive_next(); }
+  virtual void start(UDP_ReceiveListener& listener) override {
+    m_listener = &listener;
+    receive_next();
+  }
 
   void receive_next() {
+    assert(m_listener != nullptr);
+
     m_socket.async_receive_from(
         asio::buffer(m_buffer), m_remote_endpoint, {},
         [this](std::error_code ec, size_t bytes_received) {
@@ -44,6 +49,10 @@ class UDP_ReceiveImpl : public UDP_Receive {
             LOG_ERROR("async_receive_from failed: {}", ec.message());
           } else {
             LOG_DEBUG("received {} bytes", bytes_received);
+            VideoPacket packet{
+                .nal_data = std::vector<uint8_t>{
+                    m_buffer.data(), m_buffer.data() + bytes_received}};
+            m_listener->on_packet_received(std::move(packet));
             // LOG_DEBUG("Endpoint: {}/{}",
             //           m_remote_endpoint.address().to_string(),
             //           m_remote_endpoint.port());
@@ -59,6 +68,7 @@ class UDP_ReceiveImpl : public UDP_Receive {
   udp::socket m_socket;
   udp::endpoint m_remote_endpoint;
   std::vector<uint8_t> m_buffer;
+  UDP_ReceiveListener* m_listener{};
 };
 
 std::unique_ptr<UDP_Receive> make_udp_receive(asio::io_context& ctx, int port) {
