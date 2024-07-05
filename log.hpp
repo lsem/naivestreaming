@@ -2,10 +2,14 @@
 
 #include <format>
 #include <iostream>
+#include <mutex>
 #include <string_view>
 
 namespace lsem_log_details {
+extern std::mutex g_lock;
+
 enum class LogLevel { debug, info, warning, error };
+
 template <class... Args>
 inline void print_log(LogLevel level, std::string_view fmt, Args&&... args) {
   auto label_fn = [](LogLevel level) {
@@ -22,8 +26,10 @@ inline void print_log(LogLevel level, std::string_view fmt, Args&&... args) {
         return "LogLevel::<unknown>";
     }
   };
-  std::cout << label_fn(level) << ": "
-            << std::vformat(fmt, std::make_format_args(args...)) << "\n";
+
+  auto s = std::vformat(fmt, std::make_format_args(args...));
+  std::lock_guard lck{g_lock};
+  std::cout << label_fn(level) << ": " << s << "\n";
 }
 
 }  // namespace lsem_log_details
