@@ -17,6 +17,8 @@
 #include "log.hpp"
 #include "video_capture.hpp"
 
+constexpr int V4L_BUFFERS_COUNT = 5;
+
 struct Video4LinuxVideoFormat : public AbstractVideoFormatSpec {
   explicit Video4LinuxVideoFormat(AbstractVideoFormatSpec::Basic basic,
                                   uint32_t pixel_format)
@@ -305,7 +307,7 @@ class VideoCaptureImpl : public VideoCapture {
     memset(&reqbuf, 0, sizeof(reqbuf));
     reqbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     reqbuf.memory = V4L2_MEMORY_MMAP;
-    reqbuf.count = 20;
+    reqbuf.count = V4L_BUFFERS_COUNT;
 
     if (ioctl(m_v4l_fd, VIDIOC_REQBUFS, &reqbuf) == -1) {
       if (errno == EINVAL) {
@@ -322,7 +324,7 @@ class VideoCaptureImpl : public VideoCapture {
       LOG_ERROR("Failed allocating all requested buffers: {}", strerror(errno));
       // TODO: report error via error code.
       return;
-    } else if (reqbuf.count < 20) {
+    } else if (reqbuf.count < V4L_BUFFERS_COUNT) {
       LOG_WARNING("Not all buffers have been allocated");
     }
 
