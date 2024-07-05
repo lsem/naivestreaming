@@ -18,6 +18,7 @@ set(SRC
   udp_transmit.cpp
   udp_receive.cpp
   stun_client.cpp
+  log.cpp
 )
 
 add_executable(naivestreaming ${SRC})
