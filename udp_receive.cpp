@@ -44,13 +44,13 @@ class UDP_ReceiveImpl : public UDP_Receive {
             LOG_ERROR("async_receive_from failed: {}", ec.message());
           } else {
             LOG_DEBUG("received {} bytes", bytes_received);
-            LOG_DEBUG("Endpoint: {}/{}",
-                      m_remote_endpoint.address().to_string(),
-                      m_remote_endpoint.port());
+            // LOG_DEBUG("Endpoint: {}/{}",
+            //           m_remote_endpoint.address().to_string(),
+            //           m_remote_endpoint.port());
           }
           receive_next();
         });
-    LOG_DEBUG("Ready to receive some data");
+    //    LOG_DEBUG("Ready to receive some data");
   }
 
  private:

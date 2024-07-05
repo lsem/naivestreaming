@@ -14,10 +14,6 @@ class EncoderImpl : public Encoder {
       LOG_DEBUG("Closing encoder");
       x264_encoder_close(m_h);
     }
-
-    if (m_pic) {
-      x264_picture_clean(m_pic.get());
-    }
   }
 
   bool initialize() {
@@ -93,11 +89,8 @@ class EncoderImpl : public Encoder {
 
     auto picture = std::make_unique<x264_picture_t>();
 
-    if (x264_picture_alloc(picture.get(), param.i_csp, param.i_width,
-                           param.i_height) < 0) {
-      LOG_ERROR("Failed allocating picture");
-      return false;
-    }
+    x264_picture_init(picture.get());
+    picture->img.i_csp = param.i_csp;
 
     // From the x264 header:
     // The opaque pointer is the opaque pointer from the input frame associated
@@ -160,6 +153,7 @@ class EncoderImpl : public Encoder {
       //     "{})",
       //     m_frame, i_nal, nal->i_payload, frame_size);
     }
+
     m_frame++;
   }
 
