@@ -15,13 +15,13 @@ inline void print_log(LogLevel level, std::string_view fmt, Args&&... args) {
   auto label_fn = [](LogLevel level) {
     switch (level) {
       case LogLevel::debug:
-        return "DEBUG";
+        return "  DEBUG";
       case LogLevel::info:
-        return "INFO";
+        return "   INFO";
       case LogLevel::warning:
         return "WARNING";
       case LogLevel::error:
-        return "ERROR";
+        return "ERROR ";
       default:
         return "LogLevel::<unknown>";
     }

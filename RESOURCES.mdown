@@ -25,3 +25,6 @@ https://github.com/tvlabs/edge264
 
 YUV player
 https://github.com/IENT/YUView
+
+Very important note from x264 developer on real-time streaming capabilities of x264
+https://web.archive.org/web/20150421033553/http://x264dev.multimedia.cx/archives/249

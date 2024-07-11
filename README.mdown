@@ -3,6 +3,9 @@
 Streaming pipeline implemented for educational purposes.
 Incorporates video4linux, UDP, x264.
 
+# Dependencies
+Qt5 (Widgets), libavcodec, libavformat, libavutil.
+
 # Compilation
 
 You will need c++20 compiler

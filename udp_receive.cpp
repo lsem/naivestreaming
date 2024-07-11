@@ -48,7 +48,11 @@ class UDP_ReceiveImpl : public UDP_Receive {
           if (ec) {
             LOG_ERROR("async_receive_from failed: {}", ec.message());
           } else {
-            LOG_DEBUG("received {} bytes", bytes_received);
+            // if (bytes_received < 100) {
+            //   receive_next();
+            //   return;
+            // }
+            LOG_DEBUG("RECEIVE: received {} bytes", bytes_received);
             VideoPacket packet{
                 .nal_data = std::vector<uint8_t>{
                     m_buffer.data(), m_buffer.data() + bytes_received}};
