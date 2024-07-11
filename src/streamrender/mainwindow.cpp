@@ -27,7 +27,7 @@ bool MainWindow::initialize() {
     return false;
   }
 
-  m_udp_receive = make_udp_receive(m_ctx, 10000);
+  m_udp_receive = make_udp_receive(m_ctx, 34000);
   if (!m_udp_receive) {
     LOG_ERROR("failed creating udp receive");
     return false;
@@ -92,6 +92,8 @@ void MainWindow::start() {
     }
     std::cout << "DEBUG: stdin reading thread stopped\n";
   }};
+
+  m_udp_receive->start(*this);
 }
 
 void MainWindow::stop() {
@@ -100,6 +102,10 @@ void MainWindow::stop() {
     std::cout << "DEBUG: closing input descriptor\n";
     m_stdin_read_th.join();
   }
+}
+
+void MainWindow::on_packet_received(VideoPacket p) /*override*/ {
+  LOG_DEBUG("Got a packet");
 }
 
 MainWindow::MainWindow(asio::io_context& ctx,

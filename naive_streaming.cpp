@@ -80,11 +80,11 @@ class Application : public EncoderClient, public UDP_ReceiveListener {
 
     // TODO: this should actually be bound to some interface, not to just a
     // port.
-    m_udp_receive = make_udp_receive(m_ctx, port);
-    if (!m_udp_receive) {
-      LOG_ERROR("Failed creating UDP receive");
-      return false;
-    }
+    // m_udp_receive = make_udp_receive(m_ctx, port);
+    // if (!m_udp_receive) {
+    //   LOG_ERROR("Failed creating UDP receive");
+    //   return false;
+    // }
 
     return true;
   }
@@ -117,8 +117,8 @@ class Application : public EncoderClient, public UDP_ReceiveListener {
         return;
       }
 
-      LOG_DEBUG("UDP transmit initialized, starting streaming...");
-      m_udp_receive->start(*this);
+      // LOG_DEBUG("UDP transmit initialized, starting streaming...");
+      // m_udp_receive->start(*this);
 
       m_capture->start();
       cb({});
@@ -138,7 +138,7 @@ class Application : public EncoderClient, public UDP_ReceiveListener {
   std::unique_ptr<Decoder> m_decoder;
   std::unique_ptr<VideoCapture> m_capture;
   std::unique_ptr<UDP_Transmit> m_udp_transmit;
-  std::unique_ptr<UDP_Receive> m_udp_receive;
+    //  std::unique_ptr<UDP_Receive> m_udp_receive;
 };
 
 int main() {

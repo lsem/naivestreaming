@@ -16,7 +16,7 @@ class MainWindow;
 }
 QT_END_NAMESPACE
 
-class MainWindow : public QMainWindow {
+class MainWindow : public QMainWindow, public UDP_ReceiveListener {
   Q_OBJECT
 
  public:
@@ -32,9 +32,12 @@ class MainWindow : public QMainWindow {
   void start();
   void stop();
 
+ public:  // UDP_ReceiveListener
+  virtual void on_packet_received(VideoPacket p) override;
+
+ public:
   // TODO: calc based on ppixel format as well.
   size_t get_framebuff_size() const { return m_width * m_height * 3; }
-
   void closeEvent(QCloseEvent* bar) override { stop(); }
 
  private:
