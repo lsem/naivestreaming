@@ -69,7 +69,8 @@ class UDP_TransmitImpl : public UDP_Transmit {
         LOG_DEBUG("Buffer stalled");
       }
     } else {
-      LOG_DEBUG("packet sent to port {}", m_port);
+      LOG_DEBUG("TRANSMIT: packet of size {} sent to port {}",
+                packet.nal_data.size(), m_port);
     }
   }
 

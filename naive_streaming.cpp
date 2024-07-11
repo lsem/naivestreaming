@@ -50,7 +50,7 @@ class Application : public EncoderClient, public UDP_ReceiveListener {
       cout << x << "\n";
     }
 
-    m_capture = make_video_capture(devs.front(), [this](BufferView buff) {
+    m_capture = make_video_capture(devs[0], [this](BufferView buff) {
       // WARNING: called from other thread!
       m_encoder->process_frame(buff);
     });
@@ -60,6 +60,8 @@ class Application : public EncoderClient, public UDP_ReceiveListener {
     }
 
     m_capture->print_capabilities();
+
+    LOG_DEBUG("Available formats:");
     auto formats = m_capture->enumerate_formats();
     if (formats.empty()) {
       LOG_ERROR("No available video formats");
@@ -96,10 +98,11 @@ class Application : public EncoderClient, public UDP_ReceiveListener {
   }
 
   virtual void on_nal_encoded(const uint8_t* data, size_t data_size) override {
-    LOG_DEBUG("Application: sending NAL over UDP");
+    //    LOG_DEBUG("Application: sending NAL over UDP");
     VideoPacket packet;
     packet.nal_data.assign(data, data + data_size);
     m_udp_transmit->transmit(std::move(packet));
+    // m_decoder->decode_packet(packet);
     // TODO: theoretically, by utilizing scatter-gather IO we can eliminate
     // copying here completely.
   }

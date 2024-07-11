@@ -35,6 +35,7 @@ int xioctl(int fd, int request, void* arg) {
   while (-1 == r && EINTR == errno);
   return r;
 }
+
 }  // namespace
 
 // Implenebtation based on Video4Linux.
@@ -94,7 +95,7 @@ class VideoCaptureImpl : public VideoCapture {
 
 #define PROCESS_CAP(C)         \
   if (caps.capabilities & C) { \
-    LOG_DEBUG("{}", #C);       \
+    LOG_DEBUG("> {}", #C);     \
   }                            \
   while (false)
     PROCESS_CAP(V4L2_CAP_VIDEO_CAPTURE);
@@ -157,18 +158,23 @@ class VideoCaptureImpl : public VideoCapture {
       struct v4l2_frmsizeenum frmsize {};
       frmsize.pixel_format = fmtdesc.pixelformat;
       frmsize.index = 0;
+      std::string sep = "";
+      std::string frame_sizes_s;
       while (ioctl(m_v4l_fd, VIDIOC_ENUM_FRAMESIZES, &frmsize) >= 0) {
         if (frmsize.type == V4L2_FRMSIZE_TYPE_DISCRETE) {
-          LOG_DEBUG("Frame size: {}x{}", frmsize.discrete.width,
-                    frmsize.discrete.height);
+          frame_sizes_s += sep + std::format("{}x{}", frmsize.discrete.width,
+                                             frmsize.discrete.height);
         } else if (frmsize.type == V4L2_FRMSIZE_TYPE_STEPWISE) {
-          LOG_DEBUG("Frame size (stepwise): {}x{}", frmsize.stepwise.max_width,
-                    frmsize.stepwise.max_height);
+          frame_sizes_s +=
+              sep + std::format("{}x{} (stepwise)", frmsize.discrete.width,
+                                frmsize.discrete.height);
         } else {
           LOG_WARNING("Other framesize type");
         }
+        sep = ", ";
         frmsize.index++;
       }
+      LOG_DEBUG("Frame sizes: {}", frame_sizes_s);
     }
 
     return result;

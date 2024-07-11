@@ -7,7 +7,9 @@ add_compile_options("-fdiagnostics-color=always")
 
 add_subdirectory(vendor/asio)
 add_subdirectory(vendor/edge264)
+add_subdirectory(src/streamrender)
 
+include(vendor/installed-ffmpeg-libs.cmake)
 include(vendor/x264-superbuild.cmake)
 
 set(SRC
@@ -26,4 +28,4 @@ target_compile_options(naivestreaming PUBLIC "-fsanitize=address")
 target_link_options(naivestreaming PUBLIC "-fsanitize=address")
 target_link_libraries( naivestreaming
   PUBLIC asio::asio
-  PRIVATE libx264::libx264 edge264::edge264)
+  PRIVATE libx264::libx264 edge264::edge264 ffmpeg::avfamily)
