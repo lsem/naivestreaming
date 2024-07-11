@@ -3,7 +3,6 @@
 #include <cassert>
 #include "log.hpp"
 
-#include <edge264.h>
 extern "C" {
 #include <libavcodec/avcodec.h>
 }
@@ -16,12 +15,6 @@ extern "C" {
 class DecoderImpl : public Decoder {
  public:
   bool initialize() {
-    m_stream = Edge264_alloc();
-    if (!m_stream) {
-      LOG_ERROR("Failed allocating edge264 stream");
-      return false;
-    }
-
     m_packet = av_packet_alloc();
     if (!m_packet) {
       LOG_ERROR("Failed allocating packet");
@@ -69,10 +62,6 @@ class DecoderImpl : public Decoder {
   }
 
   ~DecoderImpl() override {
-    if (m_stream) {
-      Edge264_free(&m_stream);
-    }
-
     if (m_packet) {
       av_packet_free(&m_packet);
     }
@@ -122,7 +111,6 @@ class DecoderImpl : public Decoder {
   }
 
  private:
-  Edge264_stream* m_stream{};
   const AVCodec* m_codec{};
   AVCodecParserContext* m_parser_ctx{};
   AVCodecContext* m_codec_ctx{};
