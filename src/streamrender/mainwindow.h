@@ -2,9 +2,12 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <asio/io_context.hpp>
 #include <cstdio>
+#include <decoder.hpp>
 #include <string>
 #include <thread>
+#include <udp_receive.hpp>
 #include <vector>
 
 QT_BEGIN_NAMESPACE
@@ -17,7 +20,8 @@ class MainWindow : public QMainWindow {
   Q_OBJECT
 
  public:
-  MainWindow(int width,
+  MainWindow(asio::io_context& ctx,
+             int width,
              int height,
              std::string pixelformat,
              std::string fifo_path,
@@ -28,7 +32,7 @@ class MainWindow : public QMainWindow {
   void start();
   void stop();
 
-  // TODO: calc based on pixel format as well.
+  // TODO: calc based on ppixel format as well.
   size_t get_framebuff_size() const { return m_width * m_height * 3; }
 
   void closeEvent(QCloseEvent* bar) override { stop(); }
@@ -43,5 +47,8 @@ class MainWindow : public QMainWindow {
   std::vector<char> m_readbuff;
   size_t m_readbuff_size{};
   int m_fifo_fd{};
+  std::unique_ptr<Decoder> m_decoder;
+  std::unique_ptr<UDP_Receive> m_udp_receive;
+  asio::io_context& m_ctx;
 };
 #endif  // MAINWINDOW_H
