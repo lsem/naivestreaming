@@ -7,19 +7,30 @@
 #include <cstring>
 #include <filesystem>
 #include <iostream>
+#include <log.hpp>
 #include "./ui_mainwindow.h"
-
-// SO, what would be the protocol? STDIN?
 
 bool MainWindow::initialize() {
   if (std::filesystem::exists(m_fifo_path)) {
-    std::cout << "DEBUG: removing existing fifo before creating new one\n";
+    LOG_DEBUG("removing existing fifo before creating new one");
     std::error_code ec;
     std::filesystem::remove(m_fifo_path, ec);
     if (ec) {
-      std::cerr << "ERROR: failed removing fifo: " << ec.message() << "\n";
+      LOG_ERROR("failed removing fifo: {}", ec.message());
       return false;
     }
+  }
+
+  m_decoder = make_decoder();
+  if (!m_decoder) {
+    LOG_ERROR("failed creating decoder");
+    return false;
+  }
+
+  m_udp_receive = make_udp_receive(m_ctx, 10000);
+  if (!m_udp_receive) {
+    LOG_ERROR("failed creating udp receive");
+    return false;
   }
 
   m_fifo_fd = mkfifo(m_fifo_path.c_str(),
@@ -91,12 +102,13 @@ void MainWindow::stop() {
   }
 }
 
-MainWindow::MainWindow(int width,
+MainWindow::MainWindow(asio::io_context& ctx,
+                       int width,
                        int height,
                        std::string pixelformat,
                        std::string fifo_path,
                        QWidget* parent)
-    : QMainWindow(parent), ui(new Ui::MainWindow) {
+    : QMainWindow(parent), ui(new Ui::MainWindow), m_ctx{ctx} {
   m_width = width;
   m_height = height;
   m_pixformat = pixelformat;

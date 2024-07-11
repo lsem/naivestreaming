@@ -14,6 +14,7 @@ include(vendor/x264-superbuild.cmake)
 #########################################################
 # ns_common library
 add_library(ns_common log.hpp log.cpp)
+target_include_directories(ns_common PUBLIC .)
 
 #########################################################
 # ns_encoder library
@@ -25,8 +26,10 @@ add_library(ns_encoder
   udp_transmit.hpp    
   udp_transmit.cpp  
 )
+target_include_directories(ns_encoder PUBLIC .)
 target_link_libraries(ns_encoder
   PUBLIC asio::asio PRIVATE ns_common libx264::libx264)
+
 
 #########################################################
 # ns_decoder library
@@ -41,10 +44,13 @@ add_library(ns_decoder
   decoder.cpp  
   udp_receive.cpp
 )
+target_include_directories(ns_decoder PUBLIC .)
 target_link_libraries(ns_decoder
   PUBLIC asio::asio PRIVATE ns_common ffmpeg::avfamily)
 
 
+#########################################################
+# naivestreaming exe
 add_executable(naivestreaming naive_streaming.cpp)
 target_compile_options(naivestreaming PUBLIC "-fsanitize=address")
 target_link_options(naivestreaming PUBLIC "-fsanitize=address")
