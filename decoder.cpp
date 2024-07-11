@@ -44,7 +44,7 @@ class DecoderImpl : public Decoder {
 
     //    // TODO: for some reason, it works even without AV_CODEC_FLAG2_CHUNKS
     //    flag. Event though it shouldn't. Find out why.
-    // m_codec_ctx->flags2 |= AV_CODEC_FLAG2_CHUNKS;
+     m_codec_ctx->flags2 |= AV_CODEC_FLAG2_CHUNKS;
     //    assert(m_codec_ctx->flags2 & AV_CODEC_FLAG2_CHUNKS);
 
     m_frame = av_frame_alloc();
