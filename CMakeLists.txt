@@ -13,7 +13,7 @@ include(vendor/x264-superbuild.cmake)
 
 #########################################################
 # ns_common library
-add_library(ns_common log.hpp log.cpp)
+add_library(ns_common log.hpp log.cpp types.hpp)
 target_include_directories(ns_common PUBLIC .)
 
 #########################################################

@@ -24,7 +24,6 @@ class MainWindow : public QMainWindow, public UDP_ReceiveListener {
              int width,
              int height,
              std::string pixelformat,
-             std::string fifo_path,
              QWidget* parent = nullptr);
   ~MainWindow();
 
@@ -35,23 +34,23 @@ class MainWindow : public QMainWindow, public UDP_ReceiveListener {
  public:  // UDP_ReceiveListener
   virtual void on_packet_received(VideoPacket p) override;
 
+ public:  // QWindow
+  void paintEvent(QPaintEvent* event) override;
+
  public:
   // TODO: calc based on ppixel format as well.
   size_t get_framebuff_size() const { return m_width * m_height * 3; }
   void closeEvent(QCloseEvent* bar) override { stop(); }
 
  private:
-  Ui::MainWindow* ui;
-  std::jthread m_stdin_read_th;
+  Ui::MainWindow* ui{};
   int m_width{};
   int m_height{};
   std::string m_pixformat;
-  std::string m_fifo_path;
-  std::vector<char> m_readbuff;
   size_t m_readbuff_size{};
-  int m_fifo_fd{};
   std::unique_ptr<Decoder> m_decoder;
   std::unique_ptr<UDP_Receive> m_udp_receive;
   asio::io_context& m_ctx;
+  int m_packets_received{};
 };
 #endif  // MAINWINDOW_H

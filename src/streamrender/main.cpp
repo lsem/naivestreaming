@@ -8,9 +8,9 @@
 #include <thread>
 
 int main(int argc, char* argv[]) {
-  if (argc != 5) {
+  if (argc != 4) {
     std::cerr << "ERROR: no arguments specified.\nUSAGE: " << argv[0]
-              << " <WIDTH> <HEIGHT> <PIXFORMAT> <FIFO_PATH>\n";
+              << " <WIDTH> <HEIGHT> <PIXFORMAT>\n";
     return -1;
   }
 
@@ -23,7 +23,7 @@ int main(int argc, char* argv[]) {
   }};
 
   QApplication a(argc, argv);
-  MainWindow w{ctx, std::atoi(argv[1]), std::atoi(argv[2]), argv[3], argv[4]};
+  MainWindow w{ctx, std::atoi(argv[1]), std::atoi(argv[2]), argv[3]};
   if (!w.initialize()) {
     std::cerr << "ERROR: failed to initialize application\n";
     return -1;
@@ -32,6 +32,7 @@ int main(int argc, char* argv[]) {
   w.start();
   w.show();
   int res = a.exec();
+  LOG_DEBUG("Main window closed, stopping event loop");
 
   ctx.stop();  // jthread will be autojoined
 
