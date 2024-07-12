@@ -5,6 +5,7 @@
 #include <asio/io_context.hpp>
 #include <cstdio>
 #include <decoder.hpp>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <udp_receive.hpp>
@@ -16,7 +17,9 @@ class MainWindow;
 }
 QT_END_NAMESPACE
 
-class MainWindow : public QMainWindow, public UDP_ReceiveListener {
+class MainWindow : public QMainWindow,
+                   public UDP_ReceiveListener,
+                   DecoderListener {
   Q_OBJECT
 
  public:
@@ -33,6 +36,9 @@ class MainWindow : public QMainWindow, public UDP_ReceiveListener {
 
  public:  // UDP_ReceiveListener
   virtual void on_packet_received(VideoPacket p) override;
+
+ public:  // DecoderListener
+  virtual void on_frame(VideoFrame f) override;
 
  public:  // QWindow
   void paintEvent(QPaintEvent* event) override;
@@ -52,5 +58,7 @@ class MainWindow : public QMainWindow, public UDP_ReceiveListener {
   std::unique_ptr<UDP_Receive> m_udp_receive;
   asio::io_context& m_ctx;
   int m_packets_received{};
+  std::optional<VideoFrame> m_current_frame;
+  std::mutex m_current_frame_lock;
 };
 #endif  // MAINWINDOW_H

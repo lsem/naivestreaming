@@ -13,7 +13,7 @@
 #include "./ui_mainwindow.h"
 
 bool MainWindow::initialize() {
-  m_decoder = make_decoder();
+  m_decoder = make_decoder(*this);
   if (!m_decoder) {
     LOG_ERROR("failed creating decoder");
     return false;
@@ -38,6 +38,18 @@ void MainWindow::on_packet_received(VideoPacket p) /*override*/ {
   m_packets_received++;
   m_decoder->decode_packet(std::move(p));
   update();
+}
+
+void MainWindow::on_frame(VideoFrame f) /*override*/ {
+  LOG_DEBUG("Got frame");
+  std::lock_guard locked{m_current_frame_lock};
+  m_current_frame = VideoFrame{std::move(f)};
+
+  // We have a code for drawing only 422 planar pixel format.
+  assert(f.pixel_format == PixelFormat::YUV422_planar);
+  assert(f.planes[0] != nullptr);
+  assert(f.planes[1] != nullptr);
+  assert(f.planes[2] != nullptr);
 }
 
 void MainWindow::paintEvent(QPaintEvent* event) /*override*/ {

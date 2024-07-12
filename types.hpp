@@ -1,12 +1,24 @@
 #pragma once
 
+#include <array>
+#include <cstdint>
 #include <functional>
 #include <system_error>
-#include <cstdint>
 
 struct BufferView {
   void* start;
   size_t length;
+};
+
+enum class PixelFormat { YUV422_packed, YUV422_planar };
+
+// Decoder supposed to be called in the same place where it is displayed so it
+// is intended to be passed by const ref and not copy the data.
+struct VideoFrame {
+  PixelFormat pixel_format;
+  int width{};
+  int height{};
+  std::array<const uint8_t*, 3> planes;
 };
 
 template <class T>

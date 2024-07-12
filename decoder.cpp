@@ -14,6 +14,8 @@ extern "C" {
 
 class DecoderImpl : public Decoder {
  public:
+  explicit DecoderImpl(DecoderListener& listener) : m_listener(listener) {}
+
   bool initialize() {
     m_packet = av_packet_alloc();
     if (!m_packet) {
@@ -42,10 +44,25 @@ class DecoderImpl : public Decoder {
       return false;
     }
 
-    //    // TODO: for some reason, it works even without AV_CODEC_FLAG2_CHUNKS
-    //    flag. Event though it shouldn't. Find out why.
-     m_codec_ctx->flags2 |= AV_CODEC_FLAG2_CHUNKS;
-    //    assert(m_codec_ctx->flags2 & AV_CODEC_FLAG2_CHUNKS);
+    // TODO: I can't see the effect of this. Check.
+    m_codec_ctx->flags2 |= AV_CODEC_FLAG2_CHUNKS;
+
+    // Because we are going to draw our data on our own and we want to have only
+    // one implementation we need to select format. Otherwise it will be
+    // selected automatically as first non-hardware-accelerated-only format in
+    // the enum (see
+    // https://stackoverflow.com/questions/9652760/how-to-set-decode-pixel-format-in-libavcodec)
+    m_codec_ctx->get_format =
+        [](struct AVCodecContext* s,
+           const enum AVPixelFormat* fmt) -> AVPixelFormat {
+      for (auto f = fmt; f; f++) {
+        if (*f == AV_PIX_FMT_YUV422P) {
+          LOG_DEBUG("found format we need");
+          return *f;
+        }
+      }
+      return AV_PIX_FMT_NONE;
+    };
 
     m_frame = av_frame_alloc();
     if (!m_frame) {
@@ -100,17 +117,25 @@ class DecoderImpl : public Decoder {
       ret = avcodec_receive_frame(m_codec_ctx, m_frame);
       if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
         LOG_DEBUG("[DECODER] Reached end of frames");
-        return;
       } else if (ret < 0) {
         LOG_ERROR("[DECODER] Error during decoding: {}", ret);
         // TODO: fail decoder.
-        return;
+      } else {
+        // TODO: don't hardcode 1280x720
+        assert(m_frame->format == AV_PIX_FMT_YUV422P);
+        std::vector<uint8_t> plane[3];
+
+        VideoFrame frame{.pixel_format = PixelFormat::YUV422_planar,
+                         .width = 1280,
+                         .height = 720,
+                         .planes = {nullptr, nullptr, nullptr}};
+        m_listener.on_frame(std::move(frame));
       }
-      LOG_WARNING("[DECODER] Decoded frame!");
     }
   }
 
  private:
+  DecoderListener& m_listener;
   const AVCodec* m_codec{};
   AVCodecParserContext* m_parser_ctx{};
   AVCodecContext* m_codec_ctx{};
@@ -118,8 +143,8 @@ class DecoderImpl : public Decoder {
   AVPacket* m_packet{};
 };
 
-std::unique_ptr<Decoder> make_decoder() {
-  auto instance = std::make_unique<DecoderImpl>();
+std::unique_ptr<Decoder> make_decoder(DecoderListener& listener) {
+  auto instance = std::make_unique<DecoderImpl>(listener);
   if (!instance->initialize()) {
     LOG_ERROR("Failed initializing decoder");
     return nullptr;
