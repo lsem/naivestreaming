@@ -1,16 +1,31 @@
 # NaiveStreaming
 
-Streaming pipeline implemented for educational purposes.
-Incorporates video4linux, UDP, x264.
+Streaming pipeline implemented for educational purposes. The idea is to start from very simple pipeline and solve problems when they appear to better understand problems.
 
-# Dependencies
+Incpmplete list of features I would like to achieve:
+ - low latency, log bandwidth UPD-based streaming
+ - error concealment and effective handling of UDP packet loss 
+ - exploring capabilities and limitations of encoders and decoders
+ - a framework for gathering streaming metadata in order to analyse performance
+ - problem specific region-of-interest (ROI) coding
+ - bandwidth estimation in LTE network
+ - Adaptive Bitrate Streaming (ABR)
+ - rtp/rtsp like protocol as a basis for flow-control-aware data transmition
+
+At this point incorporates video4linux, UDP, x264, libavcodec. Displaying videostream is beyond of the scope of this project and is not optimized at all, realworld implementation would probably involve sw_scale and opengl. 
+
+# OS level dependencies
 Qt5 (Widgets), libavcodec, libavformat, libavutil.
 
 # Compilation
 
-You will need c++20 compiler
+You will need c++20 compiler (gcc-13+).
 
 ```
 CC=gcc-13 CXX=g++-13 cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -GNinja ..
 ```
+
+![alt text](https://github.com/lsem/naivestreaming/blob/main/ns.png "Screenshot")
+
+
 
