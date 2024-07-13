@@ -11,6 +11,7 @@ Incpmplete list of features I would like to achieve:
  - bandwidth estimation in LTE network
  - Adaptive Bitrate Streaming (ABR)
  - rtp/rtsp like protocol as a basis for flow-control-aware data transmition
+ 
 
 At this point incorporates video4linux, UDP, x264, libavcodec. Displaying videostream is beyond of the scope of this project and is not optimized at all, realworld implementation would probably involve sw_scale and opengl. 
 
