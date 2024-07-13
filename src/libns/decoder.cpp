@@ -122,7 +122,6 @@ class DecoderImpl : public Decoder {
         // TODO: fail decoder.
       } else {
         assert(m_frame->format == AV_PIX_FMT_YUV422P);
-
         assert(m_frame->data[0]);
         assert(m_frame->data[1]);
         assert(m_frame->data[2]);
