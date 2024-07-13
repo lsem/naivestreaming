@@ -12,8 +12,7 @@ struct BufferView {
 
 enum class PixelFormat { YUV422_packed, YUV422_planar };
 
-// Decoder supposed to be called in the same place where it is displayed so it
-// is intended to be passed by const ref and not copy the data.
+// Represents non-working video frame.
 struct VideoFrame {
   PixelFormat pixel_format;
   int width{};
