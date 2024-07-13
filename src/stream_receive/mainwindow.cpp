@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <QPainter>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
@@ -57,43 +58,46 @@ void MainWindow::on_frame(const VideoFrame& f) /*override*/ {
   // 422 planar description can be found in:
   // https://www.kernel.org/doc/html/v4.10/media/uapi/v4l/pixfmt-yuv422m.html
   std::unique_ptr<uchar[]> image_buffer{new uchar[f.width * f.height * 4]};
+
   const uint8_t* Y_plane = f.planes[0];
   const uint8_t* U_plane = f.planes[1];
   const uint8_t* V_plane = f.planes[2];
 
-  auto yuv_to_rgb = [](double Y, double U, double V, double& R, double& G,
-                       double& B) {
-    Y -= 16;
-    U -= 128;
-    V -= 128;
-    R = 1.164 * Y + 1.596 * V;
-    G = 1.164 * Y - 0.392 * U - 0.813 * V;
-    B = 1.164 * Y + 2.017 * U;
+  auto yuv_to_rgb = [](uint8_t Y, uint8_t U, uint8_t V, uint8_t& R, uint8_t& G,
+                       uint8_t& B) {
+    const auto Rd = Y + 1.13983 * (V - 128);
+    const auto Gd = Y - 0.39465 * (U - 128) - 0.58060 * (V - 128);
+    const auto Bd = Y + 2.03211 * (U - 128);
+    R = static_cast<uint8_t>(round(Rd));
+    G = static_cast<uint8_t>(round(Gd));
+    B = static_cast<uint8_t>(round(Bd));
   };
 
   assert(f.pixel_format == PixelFormat::YUV422_planar);
+
   for (size_t x = 0; x < f.width; ++x) {
     for (size_t y = 0; y < f.height; ++y) {
-      const size_t offset1 = y * f.width + y;
-      const size_t k = offset1 & 1 ? 1 : 0;
-      const auto Y = Y_plane[offset1];
-      const auto U = U_plane[(y * f.width + x) / 2 + k];
-      const auto V = V_plane[(y * f.width + x) / 2 + k];
+      const size_t offset = y * f.width + x;
 
-      double R, G, B;
+      const auto Y = Y_plane[offset];
+      const auto U = U_plane[offset / 2];
+      const auto V = V_plane[offset / 2];
+
+      uint8_t R, G, B;
       yuv_to_rgb(Y, U, V, R, G, B);
-      const size_t offset = (y * f.width + x) * 4;
-      image_buffer[offset + 0] = 255;
-      image_buffer[offset + 1] = R;
-      image_buffer[offset + 2] = G;
-      image_buffer[offset + 3] = B;
+
+      image_buffer[offset * 4 + 3] = 255;
+      image_buffer[offset * 4 + 2] = R;
+      image_buffer[offset * 4 + 1] = G;
+      image_buffer[offset * 4 + 0] = B;
     }
   }
 
   std::lock_guard locked{m_current_frame_lock};
   m_current_frame_data = std::move(image_buffer);
-  m_current_frame_img = QImage{m_current_frame_data.get(), f.width, f.height,
-                               QImage::Format_ARGB32};
+  m_current_frame_img =
+      QImage{static_cast<const uchar*>(m_current_frame_data.get()), f.width,
+             f.height, QImage::Format_ARGB32};
 
   update();
 }

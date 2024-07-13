@@ -123,12 +123,13 @@ class DecoderImpl : public Decoder {
       } else {
         assert(m_frame->format == AV_PIX_FMT_YUV422P);
 
+        assert(m_frame->data[0]);
+        assert(m_frame->data[1]);
+        assert(m_frame->data[2]);
+        assert(!m_frame->data[3]);
         const auto* Y_plane = m_frame->data[0];
         const auto* U_plane = m_frame->data[1];
         const auto* V_plane = m_frame->data[2];
-        assert(Y_plane);
-        assert(U_plane);
-        assert(V_plane);
 
         // TODO: don't hardcode 1280x720
         VideoFrame frame{.pixel_format = PixelFormat::YUV422_planar,
