@@ -7,6 +7,8 @@
 #include <log.hpp>
 #include <thread>
 
+LOG_MODULE_NAME("RCV_APP")
+
 int main(int argc, char* argv[]) {
   if (argc != 4) {
     std::cerr << "ERROR: no arguments specified.\nUSAGE: " << argv[0]
