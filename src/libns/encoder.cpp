@@ -56,8 +56,6 @@ class EncoderImpl : public Encoder {
     // #ifdef USE_BASELINE_PROFILE
 
     param.i_csp = X264_CSP_YUYV;  // yuyv 4:2:2 packed
-    //    param.i_csp = X264_CSP_YV12;  // yuyv 4:2:0 planar
-    //    param.i_csp = X264_CSP_I420;  // yuyv 4:2:0 planar
     // TODO: take it from settings.
     param.i_width = 1280;
     param.i_height = 720;
@@ -71,10 +69,10 @@ class EncoderImpl : public Encoder {
 
     //    param.i_keyint_max = 25;
 
-    param.rc.i_rc_method = X264_RC_CRF;
-    param.rc.f_rf_constant = 22;
-    param.rc.i_vbv_max_bitrate = 2000;
-    param.rc.i_vbv_buffer_size = 2000 / 30;
+    // param.rc.i_rc_method = X264_RC_CRF;
+    // param.rc.f_rf_constant = 22;
+    // param.rc.i_vbv_max_bitrate = 2000;
+    // param.rc.i_vbv_buffer_size = 2000 / 30;
 
     param.nalu_process = [](x264_t* h, x264_nal_t* nal, void* opaque) {
       // WARNING: This is going to be called from internal thread of x264,

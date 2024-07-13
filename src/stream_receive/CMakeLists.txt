@@ -59,3 +59,7 @@ set_target_properties(stream_receive PROPERTIES
 if(QT_VERSION_MAJOR EQUAL 6)
     qt_finalize_executable(stream_receive)
 endif()
+
+
+target_compile_options(stream_receive PUBLIC "-fsanitize=address")
+target_link_options(stream_receive PUBLIC "-fsanitize=address")
