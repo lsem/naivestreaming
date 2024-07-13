@@ -3,6 +3,8 @@
 #include <cassert>
 #include "log.hpp"
 
+LOG_MODULE_NAME("DECODER");
+
 extern "C" {
 #include <libavcodec/avcodec.h>
 }
@@ -85,7 +87,7 @@ class DecoderImpl : public Decoder {
   }
 
   virtual void decode_packet(VideoPacket p) override {
-    LOG_DEBUG("DECODER: Parsing packet of size {} bytes", p.nal_data.size());
+    LOG_DEBUG("Parsing packet of size {} bytes", p.nal_data.size());
     // LOG_DEBUG("0x{:X},0x{:X},0x{:X},0x{:X},0x{:X},0x{:X}", data[0], data[1],
     //           data[2], data[3], data[4], data[5]);
 
@@ -100,7 +102,7 @@ class DecoderImpl : public Decoder {
 
     //    LOG_DEBUG("Packet size: {}", m_packet->size);
     if (m_packet->size == 0) {
-      LOG_DEBUG("[DECODER] Not a full packet yet, skipping");
+      LOG_DEBUG("Not a full packet yet, skipping");
       return;
     }
 
@@ -116,9 +118,9 @@ class DecoderImpl : public Decoder {
     while (ret >= 0) {
       ret = avcodec_receive_frame(m_codec_ctx, m_frame);
       if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
-        LOG_DEBUG("[DECODER] Reached end of frames");
+        LOG_DEBUG("Reached end of frames");
       } else if (ret < 0) {
-        LOG_ERROR("[DECODER] Error during decoding: {}", ret);
+        LOG_ERROR("Error during decoding: {}", ret);
         // TODO: fail decoder.
       } else {
         assert(m_frame->format == AV_PIX_FMT_YUV422P);

@@ -2,6 +2,8 @@
 #include <asio.hpp>
 #include "log.hpp"
 
+LOG_MODULE_NAME("UDP_TRANSMIT");
+
 using asio::ip::udp;
 
 #define CMOVE(X) X = std::move(X)
@@ -22,39 +24,10 @@ class UDP_TransmitImpl : public UDP_Transmit {
       return false;
     }
 
-    // Settings non-blocking mode on a socket to be able to use send_to in
-    // non-blocking fashion.
-    // m_socket.non_blocking(true, ec);
-    // if (ec) {
-    //   LOG_ERROR("Failed settings non-blocking mode on a socket: {}",
-    //             ec.message());
-    //   return false;
-    // }
-
     return true;
   }
 
-  virtual void async_initialize(callback<void> cb) override {
-    cb({});
-    // m_resolver.async_resolve(
-    //     udp::v4(), m_dest_host, std::to_string(m_dest_port),
-    //     [CMOVE(cb), this](
-    //         std::error_code ec,
-    //         asio::ip::basic_resolver_results<asio::ip::udp> results) {
-    //       if (ec) {
-    //         LOG_ERROR("async_resolve failed: {}", ec.message());
-    //         cb(ec);
-    //         return;
-    //       }
-    //       LOG_DEBUG("async_resolve returned ({} results)", results.size());
-    //       if (!results.empty()) {
-    //         m_endpoint = *results.begin();
-    //         cb({});
-    //       } else {
-    //         cb(make_error_code(std::errc::io_error));
-    //       }
-    //     });
-  }
+  virtual void async_initialize(callback<void> cb) override { cb({}); }
 
   virtual void transmit(VideoPacket packet) override {
     // TODO: pack into actual RTP-like packet.
@@ -69,8 +42,8 @@ class UDP_TransmitImpl : public UDP_Transmit {
         LOG_DEBUG("Buffer stalled");
       }
     } else {
-      LOG_DEBUG("TRANSMIT: packet of size {} sent to port {}",
-                packet.nal_data.size(), m_port);
+      LOG_DEBUG("packet of size {} sent to port {}", packet.nal_data.size(),
+                m_port);
     }
   }
 
