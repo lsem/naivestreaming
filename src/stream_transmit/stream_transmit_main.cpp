@@ -9,13 +9,13 @@
 #include "udp_transmit.hpp"
 #include "video_capture.hpp"
 
-LOG_MODULE_NAME("STREAM_TRANSMIT_APP")
+LOG_MODULE_NAME("TNSM_APP")
 
 using namespace std;
 
-class StreanTransmitApp : public EncoderClient {
+class StreamTransmitApp : public EncoderClient {
  public:
-  explicit StreanTransmitApp(asio::io_context& ctx) : m_ctx(ctx) {}
+  explicit StreamTransmitApp(asio::io_context& ctx) : m_ctx(ctx) {}
 
   bool initialize() {
     m_encoder = make_encoder(*this);
@@ -77,13 +77,9 @@ class StreanTransmitApp : public EncoderClient {
     VideoPacket packet;
     packet.nal_data.assign(data, data + data_size);
     m_udp_transmit->transmit(std::move(packet));
-    // m_decoder->decode_packet(packet);
-    // TODO: theoretically, by utilizing scatter-gather IO we can eliminate
-    // copying here completely.
   }
 
   void async_start_streaming(callback<void> cb) {
-    // TODO: we cab start capturing veideostream in parallel to resolve.
     LOG_INFO("Starting Streaming..");
     m_udp_transmit->async_initialize([cb = std::move(cb), this](auto ec) {
       if (ec) {
@@ -109,7 +105,7 @@ class StreanTransmitApp : public EncoderClient {
 int main() {
   asio::io_context ctx;
 
-  StreanTransmitApp app{ctx};
+  StreamTransmitApp app{ctx};
   if (!app.initialize()) {
     LOG_ERROR("Failed initializating app. Exiting..");
     return -1;

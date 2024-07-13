@@ -13,6 +13,8 @@
 #include <log.hpp>
 #include "./ui_mainwindow.h"
 
+LOG_MODULE_NAME("RCV_APP")
+
 bool MainWindow::initialize() {
   m_decoder = make_decoder(*this);
   if (!m_decoder) {
