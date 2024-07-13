@@ -6,7 +6,9 @@
 class DecoderListener {
  public:
   virtual ~DecoderListener() = default;
-  virtual void on_frame(VideoFrame f) = 0;
+
+  // The frame data is non-owning, i.e. is valid only for a time of call.
+  virtual void on_frame(const VideoFrame& f) = 0;
 };
 
 class Decoder {

@@ -38,7 +38,7 @@ class MainWindow : public QMainWindow,
   virtual void on_packet_received(VideoPacket p) override;
 
  public:  // DecoderListener
-  virtual void on_frame(VideoFrame f) override;
+  virtual void on_frame(const VideoFrame& f) override;
 
  public:  // QWindow
   void paintEvent(QPaintEvent* event) override;
@@ -58,7 +58,9 @@ class MainWindow : public QMainWindow,
   std::unique_ptr<UDP_Receive> m_udp_receive;
   asio::io_context& m_ctx;
   int m_packets_received{};
-  std::optional<VideoFrame> m_current_frame;
+
   std::mutex m_current_frame_lock;
+  QImage m_current_frame_img;
+  std::unique_ptr<uchar[]> m_current_frame_data;
 };
 #endif  // MAINWINDOW_H
