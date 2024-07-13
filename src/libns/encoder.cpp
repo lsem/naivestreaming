@@ -86,8 +86,8 @@ class EncoderImpl : public Encoder {
 
       x264_nal_encode(h, this_->m_nal_encoding_buff.data(), nal);
 
-      LOG_DEBUG("sending NAL of {}, first MB: {}, last MB: {}",
-                nal->i_payload, nal->i_first_mb, nal->i_last_mb);
+      LOG_DEBUG("sending NAL of {}, first MB: {}, last MB: {}", nal->i_payload,
+                nal->i_first_mb, nal->i_last_mb);
 
       std::lock_guard lck{this_->m_client_notification_lock};
       this_->m_client.on_nal_encoded(nal->p_payload, nal->i_payload);
@@ -120,8 +120,8 @@ class EncoderImpl : public Encoder {
     x264_picture_init(picture.get());
     // x264_picture_alloc(picture.get(), param.i_csp, param.i_width,
     //                    param.i_height);
-    //    assert(picture->img.i_plane == 1);
     picture->img.i_csp = param.i_csp;
+    picture->img.i_plane = 1;
 
     // From the x264 header:
     // The opaque pointer is the opaque pointer from the input frame associated
@@ -169,46 +169,6 @@ class EncoderImpl : public Encoder {
     const size_t width = 1280;
     const size_t height = 720;
 
-    // TODO: we should have a format and dimensions as part of BufferView so we
-    // can change the format dynamically.
-    // In order to encode with Baseline
-    // profile which supposed to be used for Video Streaming applications, we
-    // need to transcore RAW 422 into 420 because 422 is not supported by
-    // encoder but is the only format available for web cameras.
-    // https://www.kernel.org/doc/html/v4.8/media/uapi/v4l/pixfmt-yuyv.html
-    // https://www.kernel.org/doc/html/v4.10/media/uapi/v4l/pixfmt-yuv420.html
-    // Convert packet 422 to planar 420
-    // const auto* data_422 = reinterpret_cast<uint8_t*>(buff.start);
-    // uint8_t* data_420_y_plane = (uint8_t*)malloc(buff.length / 2);
-    // uint8_t* data_420_cb_plane = (uint8_t*)malloc(buff.length / 4);
-    // uint8_t* data_420_cr_plane = (uint8_t*)malloc(buff.length / 4);
-    // size_t y_plane_out_idx = 0;
-    // size_t chroma_plane_out_idx = 0;
-    // for (size_t i = 0; i <= buff.length - 4; i += 4) {
-    //   uint8_t y1 = data_422[i];
-    //   uint8_t y2 = data_422[i + 2];
-    //   uint8_t cb = data_422[i + 1];
-    //   uint8_t cr = data_422[i + 3];
-
-    //   data_420_y_plane[y_plane_out_idx++] = y1;
-    //   data_420_y_plane[y_plane_out_idx++] = y2;
-
-    //   data_420_cb_plane[chroma_plane_out_idx] = cb;
-    //   data_420_cr_plane[chroma_plane_out_idx] = cr;
-    //   chroma_plane_out_idx++;
-    // }
-    // m_pic->img.i_stride[0] = width;
-    // m_pic->img.i_stride[1] = width / 2;
-    // m_pic->img.i_stride[2] = width / 2;
-
-    // m_pic->img.plane[0] = data_420_y_plane;
-    // m_pic->img.plane[1] = data_420_cb_plane;
-    // m_pic->img.plane[2] = data_420_cr_plane;
-
-    // assert(width * height == buff.length / 2);
-    // assert(y_plane_out_idx == buff.length / 2);
-    // assert(chroma_plane_out_idx == buff.length / 4);
-
     // Packed YUYV 422 has only one plain.
     m_pic->img.plane[0] = reinterpret_cast<uint8_t*>(buff.start);
     m_pic->img.i_stride[0] = 1280 * 2;
@@ -225,14 +185,12 @@ class EncoderImpl : public Encoder {
       // TODO: consider not to fail immidiately.
       return;
     } else if (frame_size) {
-      LOG_DEBUG("end encode");
       m_client.on_frame_ended();
 
-      // LOG_DEBUG(
-      //     "Encoded frame {} (nals count: {}, nal payload size {}) (frame
-      //     size: "
-      //     "{})",
-      //     m_frame, i_nal, nal->i_payload, frame_size);
+      LOG_DEBUG(
+          "Encoded frame {} (nals count: {}, nal payload size: {}, frame size: "
+          "{})",
+          m_frame, i_nal, nal->i_payload, frame_size);
     }
 
     m_frame++;

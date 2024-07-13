@@ -88,8 +88,6 @@ class DecoderImpl : public Decoder {
 
   virtual void decode_packet(VideoPacket p) override {
     LOG_DEBUG("Parsing packet of size {} bytes", p.nal_data.size());
-    // LOG_DEBUG("0x{:X},0x{:X},0x{:X},0x{:X},0x{:X},0x{:X}", data[0], data[1],
-    //           data[2], data[3], data[4], data[5]);
 
     // TODO: check for minimum number of bytes!
     p.nal_data.resize(p.nal_data.size() + AV_INPUT_BUFFER_PADDING_SIZE);
@@ -100,7 +98,6 @@ class DecoderImpl : public Decoder {
                                &m_packet->size, data, data_size, AV_NOPTS_VALUE,
                                AV_NOPTS_VALUE, 0);
 
-    //    LOG_DEBUG("Packet size: {}", m_packet->size);
     if (m_packet->size == 0) {
       LOG_DEBUG("Not a full packet yet, skipping");
       return;

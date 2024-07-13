@@ -114,10 +114,9 @@ void MainWindow::paintEvent(QPaintEvent* event) /*override*/ {
   painter.drawImage(rect(), m_current_frame_img);
 
   // srand(42);
-  // QBrush brush{QColor{135, 135, 135}};
+  // QBrush brush{QColor{135, 135, 135, 100}};
   // for (int i = 0; i < m_packets_received; ++i) {
-  //   painter.fillRect(QRectF(rand() % width(), rand() % height(), 5, 5),
-  //   brush);
+  //   painter.fillRect(QRectF(rand() % width(), rand() % height(), 5, 5), brush);
   // }
 
   painter.end();
