@@ -17,6 +17,8 @@
 #include "log.hpp"
 #include "video_capture.hpp"
 
+LOG_MODULE_NAME("CAPTURE");
+
 constexpr int V4L_BUFFERS_COUNT = 5;
 
 struct Video4LinuxVideoFormat : public AbstractVideoFormatSpec {

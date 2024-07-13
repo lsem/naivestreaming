@@ -9,22 +9,13 @@
 #include "udp_transmit.hpp"
 #include "video_capture.hpp"
 
+LOG_MODULE_NAME("STREAM_TRANSMIT_APP")
+
 using namespace std;
 
-/* **SUBTASKS**
- *   1) component responsible for capturing video (getting a constant flow of
- * image frames) 2) component for encoding captrured video stream. 3) Component
- * for sending video stream. 4) Component for receiving video stream. 5)
- * Component for decoding video stream. 6) Component for displaying video
- * stream.
- */
-
-// What is a challange of implementing RTP/RTCP having only ASIO.
-// Not only it should give us some
-
-class Application : public EncoderClient {
+class StreanTransmitApp : public EncoderClient {
  public:
-  explicit Application(asio::io_context& ctx) : m_ctx(ctx) {}
+  explicit StreanTransmitApp(asio::io_context& ctx) : m_ctx(ctx) {}
 
   bool initialize() {
     m_encoder = make_encoder(*this);
@@ -71,14 +62,6 @@ class Application : public EncoderClient {
       return false;
     }
 
-    // TODO: this should actually be bound to some interface, not to just a
-    // port.
-    // m_udp_receive = make_udp_receive(m_ctx, port);
-    // if (!m_udp_receive) {
-    //   LOG_ERROR("Failed creating UDP receive");
-    //   return false;
-    // }
-
     return true;
   }
 
@@ -91,7 +74,6 @@ class Application : public EncoderClient {
   }
 
   virtual void on_nal_encoded(const uint8_t* data, size_t data_size) override {
-    //    LOG_DEBUG("Application: sending NAL over UDP");
     VideoPacket packet;
     packet.nal_data.assign(data, data + data_size);
     m_udp_transmit->transmit(std::move(packet));
@@ -110,9 +92,6 @@ class Application : public EncoderClient {
         return;
       }
 
-      // LOG_DEBUG("UDP transmit initialized, starting streaming...");
-      // m_udp_receive->start(*this);
-
       m_capture->start();
       cb({});
     });
@@ -125,13 +104,12 @@ class Application : public EncoderClient {
   std::unique_ptr<Encoder> m_encoder;
   std::unique_ptr<VideoCapture> m_capture;
   std::unique_ptr<UDP_Transmit> m_udp_transmit;
-  //  std::unique_ptr<UDP_Receive> m_udp_receive;
 };
 
 int main() {
   asio::io_context ctx;
 
-  Application app{ctx};
+  StreanTransmitApp app{ctx};
   if (!app.initialize()) {
     LOG_ERROR("Failed initializating app. Exiting..");
     return -1;

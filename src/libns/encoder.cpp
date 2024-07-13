@@ -6,13 +6,7 @@
 #include <mutex>
 #include <vector>
 
-void test(int i) {}
-void test(float f) {}
-
-template <class T>
-void test() {}
-
-void test2(int x, float y) {}
+LOG_MODULE_NAME("ENCODER");
 
 class EncoderImpl : public Encoder {
  public:
@@ -92,7 +86,7 @@ class EncoderImpl : public Encoder {
 
       x264_nal_encode(h, this_->m_nal_encoding_buff.data(), nal);
 
-      LOG_DEBUG("ENCODER: sending NAL of {}, first MB: {}, last MB: {}",
+      LOG_DEBUG("sending NAL of {}, first MB: {}, last MB: {}",
                 nal->i_payload, nal->i_first_mb, nal->i_last_mb);
 
       std::lock_guard lck{this_->m_client_notification_lock};
@@ -223,7 +217,7 @@ class EncoderImpl : public Encoder {
     m_pic->i_pts = m_frame;
     LOG_DEBUG("frame: {}", m_pic->i_pts);
 
-    LOG_DEBUG("ENCODER: Start encode");
+    LOG_DEBUG("Start encode");
     int frame_size =
         x264_encoder_encode(m_h, &nal, &i_nal, m_pic.get(), &pic_out);
     if (frame_size < 0) {
@@ -231,7 +225,7 @@ class EncoderImpl : public Encoder {
       // TODO: consider not to fail immidiately.
       return;
     } else if (frame_size) {
-      LOG_DEBUG("ENCODER: end encode");
+      LOG_DEBUG("end encode");
       m_client.on_frame_ended();
 
       // LOG_DEBUG(
