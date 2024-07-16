@@ -2,6 +2,7 @@
 #include <asio.hpp>
 
 #include "log.hpp"
+#include "rtp.hpp"
 
 LOG_MODULE_NAME("UDP_RECEIVE");
 
@@ -31,7 +32,7 @@ class UDP_ReceiveImpl : public UDP_Receive {
 
     // TODO: this is something I don't know yet if we can receive multiple
     // datagram at once.
-    m_buffer.resize(1600);
+    m_buffer.resize(1500);
 
     return true;
   }
@@ -50,18 +51,44 @@ class UDP_ReceiveImpl : public UDP_Receive {
           if (ec) {
             LOG_ERROR("async_receive_from failed: {}", ec.message());
           } else {
-            // if (bytes_received < 100) {
-            //   receive_next();
-            //   return;
-            // }
             LOG_DEBUG("received {} bytes", bytes_received);
+
+            // TODO: I doubt that just a jeader is enough. There must be more
+            // realistic minimum packet size.
+            // TODO: check if at least version looks good before parsing
+            // potential crap.
+            if (bytes_received < 12) {
+              // TODO: count this events and remove logging and just ignore.
+              LOG_ERROR("Got too small packet");
+              // TODO: refactor in a way that we don't need to write
+              // receive_next().
+              receive_next();
+              return;
+            }
+            auto maybe_rtp_header = deserialize_from(m_buffer);
+            if (!maybe_rtp_header.has_value()) {
+              LOG_ERROR("Got data that cannot be RTP header: {}",
+                        maybe_rtp_header.error().message());
+              receive_next();
+              return;
+            }
+            auto& rtp_header = *maybe_rtp_header;
+
+            if (rtp_header.version != 2) {
+              // TODO: should be removed from production, just count.
+              LOG_DEBUG("Wrong RTP packet, wrong version: {}",
+                        rtp_header.version);
+              receive_next();
+              return;
+            }
+
+            LOG_DEBUG("Got something that looks like a header");
+
             VideoPacket packet{
                 .nal_data = std::vector<uint8_t>{
-                    m_buffer.data(), m_buffer.data() + bytes_received}};
+                    m_buffer.data() + RTP_PacketHeader_Size,
+                    m_buffer.data() + RTP_PacketHeader_Size + bytes_received}};
             m_listener->on_packet_received(std::move(packet));
-            // LOG_DEBUG("Endpoint: {}/{}",
-            //           m_remote_endpoint.address().to_string(),
-            //           m_remote_endpoint.port());
           }
           receive_next();
         });
