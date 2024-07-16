@@ -48,7 +48,7 @@ class UDP_TransmitImpl : public UDP_Transmit {
 
     std::array<uint8_t, RTP_PacketHeader_Size> header_buff;
 
-    if (auto ec = serialize_to(header, header_buff); ec) {
+    if (auto ec = serialize_rtp_header_to(header, header_buff); ec) {
       LOG_ERROR("Failed serializing packet, ignoring: {}", ec.message());
       return;
     }

@@ -24,9 +24,10 @@ struct RTP_PacketHeader {
   std::vector<uint32_t> csrc;
 };
 
-std::error_code serialize_to(const RTP_PacketHeader& ph,
-                             std::span<uint8_t> buffer);
-expected<RTP_PacketHeader> deserialize_from(std::span<const uint8_t> data);
+std::error_code serialize_rtp_header_to(const RTP_PacketHeader& ph,
+                                        std::span<uint8_t> buffer);
+expected<RTP_PacketHeader> deserialize_rtp_header_from(
+    std::span<const uint8_t> data);
 
 bool operator==(const RTP_PacketHeader& lhs, const RTP_PacketHeader& rhs);
 

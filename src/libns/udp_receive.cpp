@@ -65,7 +65,7 @@ class UDP_ReceiveImpl : public UDP_Receive {
               receive_next();
               return;
             }
-            auto maybe_rtp_header = deserialize_from(m_buffer);
+            auto maybe_rtp_header = deserialize_rtp_header_from(m_buffer);
             if (!maybe_rtp_header.has_value()) {
               LOG_ERROR("Got data that cannot be RTP header: {}",
                         maybe_rtp_header.error().message());
