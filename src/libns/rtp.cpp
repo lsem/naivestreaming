@@ -19,8 +19,8 @@ uint32_t ntoh(uint32_t v) {
 }
 }  // namespace
 
-std::error_code serialize_to(const RTP_PacketHeader& ph,
-                             std::span<uint8_t> buffer) {
+std::error_code serialize_rtp_header_to(const RTP_PacketHeader& ph,
+                                        std::span<uint8_t> buffer) {
   // TODO: check size of buffer.
   if (buffer.size() < 12) {
     LOG_ERROR("Minimum buffer size for RTP header is 12, there is: {}",
@@ -91,7 +91,8 @@ std::error_code serialize_to(const RTP_PacketHeader& ph,
 
   return {};
 }
-expected<RTP_PacketHeader> deserialize_from(std::span<const uint8_t> data) {
+expected<RTP_PacketHeader> deserialize_rtp_header_from(
+    std::span<const uint8_t> data) {
   if (data.size() < 12) {
     LOG_ERROR("rtp header cannot be smaller than 12 bytes, there is {}",
               data.size());

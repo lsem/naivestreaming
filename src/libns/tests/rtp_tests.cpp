@@ -18,7 +18,7 @@ TEST(rtp_tests, basic_serialize_test) {
   p.ssrc = 0xfe15124a;
 
   std::array<uint8_t, RTP_PacketHeader_Size> buff;
-  auto ec = serialize_to(p, buff);
+  auto ec = serialize_rtp_header_to(p, buff);
   ASSERT_FALSE(ec);
 
   EXPECT_EQ(buff[0], 0x90);
@@ -49,7 +49,7 @@ TEST(rtp_tests, basic_deserialize_test) {
   p.timestamp = 1662400414;
   p.ssrc = 0xfe15124a;
 
-  auto maybe_deserialized_packet = deserialize_from(data);
+  auto maybe_deserialized_packet = deserialize_rtp_header_from(data);
   ASSERT_TRUE(maybe_deserialized_packet.has_value());
   ASSERT_EQ(maybe_deserialized_packet.value(), p);
 }
@@ -68,10 +68,10 @@ TEST(rtp_tests, basic_routrip_test) {
 
   std::array<uint8_t, RTP_PacketHeader_Size> buff;
 
-  auto ec = serialize_to(p, buff);
+  auto ec = serialize_rtp_header_to(p, buff);
   ASSERT_FALSE(ec);
 
-  auto maybe_deserialized_packet = deserialize_from(buff);
+  auto maybe_deserialized_packet = deserialize_rtp_header_from(buff);
   ASSERT_TRUE(maybe_deserialized_packet.has_value());
   ASSERT_EQ(maybe_deserialized_packet.value(), p);
 }
@@ -94,10 +94,10 @@ TEST(rtp_tests, randomized_routrip_test) {
 
     std::array<uint8_t, RTP_PacketHeader_Size> buff;
 
-    auto ec = serialize_to(p, buff);
+    auto ec = serialize_rtp_header_to(p, buff);
     ASSERT_FALSE(ec);
 
-    auto maybe_deserialized_packet = deserialize_from(buff);
+    auto maybe_deserialized_packet = deserialize_rtp_header_from(buff);
     ASSERT_TRUE(maybe_deserialized_packet.has_value());
     ASSERT_EQ(maybe_deserialized_packet.value(), p);
   }
