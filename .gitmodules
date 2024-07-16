@@ -10,3 +10,9 @@
 [submodule "vendor/edge264"]
 	path = vendor/edge264
 	url = git@github.com:lsem/edge264.git
+[submodule "vendor/expected"]
+	path = vendor/expected
+	url = git@github.com:lsem/expected.git
+[submodule "vendor/googletest"]
+	path = vendor/googletest
+	url = git@github.com:lsem/googletest.git

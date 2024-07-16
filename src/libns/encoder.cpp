@@ -111,7 +111,7 @@ class EncoderImpl : public Encoder {
     // allowing to not retransmit occasional lost packets.
     //    The client can decide if it needs to ask for retransmition or just
     //    display someting else instead of missed slice.
-    param.i_slice_max_size = 1500;
+    param.i_slice_max_size = 1400;
     param.i_threads = 1;
     param.b_sliced_threads = 0;
 
