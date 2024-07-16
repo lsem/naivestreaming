@@ -5,28 +5,17 @@
 #include <type_traits>
 
 namespace {
-template <class T>
-T to_n(T v) {
-  if constexpr (std::is_same_v<T, uint16_t>) {
-    return htons(v);
-  } else if constexpr (std::is_same_v<T, uint32_t>) {
-    return htonl(v);
-  } else {
-    // Note, static_assert should depdent on T, is_same<T, int> is work around.
-    static_assert(std::is_same_v<T, void>, "Unsupported type");
-  }
+uint16_t hton(uint16_t v) {
+  return htons(v);
 }
-
-template <class T>
-T to_h(T v) {
-  if constexpr (std::is_same_v<T, uint16_t>) {
-    return ntohs(v);
-  } else if constexpr (std::is_same_v<T, uint32_t>) {
-    return ntohl(v);
-  } else {
-    // Note, static_assert should depdent on T, is_same<T, int> is work around.
-    static_assert(std::is_same_v<T, void>, "Unsupported type");
-  }
+uint32_t hton(uint32_t v) {
+  return htonl(v);
+}
+uint16_t ntoh(uint16_t v) {
+  return ntohs(v);
+}
+uint32_t ntoh(uint32_t v) {
+  return ntohl(v);
 }
 }  // namespace
 
@@ -75,19 +64,19 @@ std::error_code serialize_to(const RTP_PacketHeader& ph,
   buffer[1] |= static_cast<uint8_t>(ph.payload_type);
 
   {
-    const uint16_t n_seq_num = to_n(ph.sequence_num);
+    const uint16_t n_seq_num = hton(ph.sequence_num);
     buffer[2] = n_seq_num & 0x00FF;
     buffer[3] = n_seq_num >> 8;
   }
   {
-    const uint32_t n_timestamp = to_n(ph.timestamp);
+    const uint32_t n_timestamp = hton(ph.timestamp);
     buffer[4] = (n_timestamp & 0x000000FF);
     buffer[5] = (n_timestamp & 0x0000FFFF) >> 8;
     buffer[6] = (n_timestamp & 0x00FFFFFF) >> 16;
     buffer[7] = n_timestamp >> 24;
   }
   {
-    const uint32_t n_ssrc = to_n(ph.ssrc);
+    const uint32_t n_ssrc = hton(ph.ssrc);
     buffer[8] = (n_ssrc & 0x000000FF);
     buffer[9] = (n_ssrc & 0x0000FFFF) >> 8;
     buffer[10] = (n_ssrc & 0x00FFFFFF) >> 16;
@@ -126,7 +115,7 @@ expected<RTP_PacketHeader> deserialize_from(std::span<const uint8_t> data) {
   {
     const uint16_t n_sequence_num =
         static_cast<uint16_t>(data[2]) | static_cast<uint16_t>(data[3]) << 8;
-    new_header.sequence_num = to_h(n_sequence_num);
+    new_header.sequence_num = ntoh(n_sequence_num);
   }
 
   {
@@ -134,7 +123,7 @@ expected<RTP_PacketHeader> deserialize_from(std::span<const uint8_t> data) {
                                  static_cast<uint32_t>(data[5]) << 8 |
                                  static_cast<uint32_t>(data[6]) << 16 |
                                  static_cast<uint32_t>(data[7]) << 24;
-    new_header.timestamp = to_h(n_timestamp);
+    new_header.timestamp = ntoh(n_timestamp);
   }
 
   {
@@ -142,7 +131,7 @@ expected<RTP_PacketHeader> deserialize_from(std::span<const uint8_t> data) {
                             static_cast<uint32_t>(data[9]) << 8 |
                             static_cast<uint32_t>(data[10]) << 16 |
                             static_cast<uint32_t>(data[11]) << 24;
-    new_header.ssrc = to_h(n_ssrc);
+    new_header.ssrc = ntoh(n_ssrc);
   }
   // Ignore csrc list items..
 
