@@ -35,7 +35,7 @@ class UDP_TransmitImpl : public UDP_Transmit {
     RTP_PacketHeader header;
     header.version = 2;
     header.padding_bit = 1;
-    header.extension_bit = 1;
+    header.extension_bit = 0;
     header.marker_bit = 0;
     header.payload_type = 78;
     header.sequence_num = 300;

@@ -30,7 +30,7 @@ class EncoderImpl : public Encoder {
     x264_nal_t* nal{};
     int i_nal{};
 
-    if (x264_param_default_preset(&param, "ultrafast", "zerolatency") < 0) {
+    if (x264_param_default_preset(&param, "faster", "zerolatency") < 0) {
       LOG_ERROR("Failed applying profile (first) ");
       return false;
     }

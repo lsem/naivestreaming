@@ -32,7 +32,7 @@ class UDP_ReceiveImpl : public UDP_Receive {
 
     // TODO: this is something I don't know yet if we can receive multiple
     // datagram at once.
-    m_buffer.resize(1500);
+    m_buffer.resize(1600);
 
     return true;
   }
@@ -82,12 +82,26 @@ class UDP_ReceiveImpl : public UDP_Receive {
               return;
             }
 
+            if (rtp_header.extension_bit) {
+              // We don't support extensions at the moment. If there was an
+              // extension we would need to change calculation of payload begin.
+              // TODO: this warning should be removed from production.
+              LOG_WARNING("Packet with extension bit set, ignoring..");
+              receive_next();
+              return;
+            }
+
+            std::span<const uint8_t> payload{
+                m_buffer.begin() + RTP_PacketHeader_Size, m_buffer.end()};
+
             LOG_DEBUG("Got something that looks like a header");
 
-            VideoPacket packet{
-                .nal_data = std::vector<uint8_t>{
-                    m_buffer.data() + RTP_PacketHeader_Size,
-                    m_buffer.data() + RTP_PacketHeader_Size + bytes_received}};
+            VideoPacket packet{.nal_data = std::vector<uint8_t>{payload.begin(),
+                                                                payload.end()}};
+
+            // TODO: packets should be reordered by sequence level. There should
+            // also be a timeout.
+
             m_listener->on_packet_received(std::move(packet));
           }
           receive_next();

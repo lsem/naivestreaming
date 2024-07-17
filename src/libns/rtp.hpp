@@ -11,7 +11,6 @@
 
 // https://datatracker.ietf.org/doc/html/rfc3550#section-5.1
 
-constexpr size_t RTP_PacketHeader_Size = 12;
 struct RTP_PacketHeader {
   unsigned version{};
   bool padding_bit{};
@@ -32,3 +31,23 @@ expected<RTP_PacketHeader> deserialize_rtp_header_from(
 bool operator==(const RTP_PacketHeader& lhs, const RTP_PacketHeader& rhs);
 
 std::ostream& operator<<(std::ostream& os, const RTP_PacketHeader&);
+
+// RFC does not define any extensions and leaves it open for implementations.
+// For now, I don't need extensions but if I event need I would need to model it
+// properly with C++. For now I just leave generic fields and raw data bytes
+// just to be able to skip extension data. See 5.3.1 of RFC for details.
+class RTP_HeaderExtension {
+  std::byte header_bytes[2];
+  uint16_t length{};
+  std::vector<std::byte> data;
+};
+
+// This is the size that client needs to allocate to accomodate header. If we
+// want to use extensions, they must be calculated separately for extensions
+// that are used.
+constexpr size_t RTP_PacketHeader_Size = 12;
+
+// The total size of header with extension would be RTP_PacketHeader_Size +
+// RTP_HeaderExtensionFixed_Size + profile-specific extension length (can be
+// even variable length). See 3.5.1 for details.
+constexpr size_t RTP_HeaderExtensionFixed_Size = 4;
