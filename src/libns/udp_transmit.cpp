@@ -38,7 +38,7 @@ class UDP_TransmitImpl : public UDP_Transmit {
     header.extension_bit = 0;
     header.marker_bit = 0;
     header.payload_type = 78;
-    header.sequence_num = packet.sequence_num;
+    header.sequence_num = m_sequence_num++;
 
     // 2^32 milliseconds is ~49 days. As long as we are interested only in
     // difference between consecutive packets we should be fine.
@@ -46,6 +46,10 @@ class UDP_TransmitImpl : public UDP_Transmit {
         std::chrono::duration_cast<std::chrono::milliseconds>(
             packet.timestamp - std::chrono::steady_clock::time_point{})
             .count());
+
+    // TODO: encode first_macroblock and last_macroblock into a packet.
+    // Probably, we can use extension for this purpose or additional payload
+    // header.
 
     std::array<uint8_t, RTP_PacketHeader_Size> header_buff;
 
@@ -80,6 +84,7 @@ class UDP_TransmitImpl : public UDP_Transmit {
   udp::socket m_socket;
   udp::endpoint m_endpoint;
   udp::resolver m_resolver{m_ctx};
+  std::atomic<unsigned> m_sequence_num{};
 };
 
 std::unique_ptr<UDP_Transmit> make_udp_transmit(asio::io_context& ctx,

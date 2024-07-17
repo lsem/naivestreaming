@@ -103,8 +103,9 @@ class EncoderImpl : public Encoder {
       // TODO: where do I get frame data?
       this_->m_client.on_nal_encoded(
           std::span{nal->p_payload, nal->p_payload + nal->i_payload},
-          EncodedFrameMetadata{.timestamp = user_data.captured_fmeta.timestamp,
-                               .sequence_num = 0});
+          NAL_Metadata{.timestamp = user_data.captured_fmeta.timestamp,
+                       .first_macroblock = nal->i_first_mb,
+                       .last_macroblock = nal->i_last_mb});
     };
 
     // TODO: calculate this value correctly.

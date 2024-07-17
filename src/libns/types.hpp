@@ -13,9 +13,13 @@ struct CapturedFrameMeta {
 
 // Encoder may produce some frame metadata related to both particular NAL or a
 // frame.
-struct EncodedFrameMetadata {
+struct NAL_Metadata {
   std::chrono::steady_clock::time_point timestamp;
-  uint32_t sequence_num{};
+  // If NAL caries slice, macroblock range (first, last) will indicate what
+  // macroblocks are caried by this NAL. Supposed to be used by receiver to sort
+  // NALs before feeding to decoder.
+  int first_macroblock{};
+  int last_macroblock{};
 };
 
 enum class PixelFormat { YUV422_packed, YUV422_planar };
@@ -45,6 +49,6 @@ using callback = CallbackTemplate<T>::type;
 // using general allocator.
 struct VideoPacket {
   std::vector<uint8_t> nal_data;
-  uint32_t sequence_num{};
+  NAL_Metadata nal_meta;
   std::chrono::steady_clock::time_point timestamp;
 };

@@ -77,9 +77,10 @@ class StreamTransmitApp : public EncoderClient {
   }
 
   virtual void on_nal_encoded(std::span<const uint8_t> data,
-                              EncodedFrameMetadata meta) override {
+                              NAL_Metadata meta) override {
     VideoPacket packet;
     packet.nal_data.assign(data.begin(), data.end());
+    packet.nal_meta = meta;
     packet.timestamp = meta.timestamp;
     m_udp_transmit->transmit(std::move(packet));
   }

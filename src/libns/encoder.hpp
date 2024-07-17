@@ -11,7 +11,7 @@ class EncoderClient {
   virtual void on_frame_started() = 0;
   virtual void on_frame_ended() = 0;
   virtual void on_nal_encoded(std::span<const uint8_t> data,
-                              EncodedFrameMetadata meta) = 0;
+                              NAL_Metadata meta) = 0;
 };
 
 class Encoder {
