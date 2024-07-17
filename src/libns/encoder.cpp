@@ -8,6 +8,14 @@
 
 LOG_MODULE_NAME("ENCODER");
 
+struct EncoderImpl;
+namespace {
+struct FrameUserData {
+  EncoderImpl* this_{};
+  CapturedFrameMeta captured_fmeta;
+};
+}  // namespace
+
 class EncoderImpl : public Encoder {
  public:
   EncoderImpl(EncoderClient& client) : m_client(client) {}
@@ -80,7 +88,9 @@ class EncoderImpl : public Encoder {
 
       LOG_DEBUG("Produced NAL of type: {}", nal->i_type);
 
-      auto this_ = static_cast<EncoderImpl*>(opaque);
+      auto& user_data = *static_cast<FrameUserData*>(opaque);
+      auto this_ = user_data.this_;
+
       assert((nal->i_payload * 3) / 2 + 5 + 64 <
              this_->m_nal_encoding_buff.size());
 
@@ -90,7 +100,11 @@ class EncoderImpl : public Encoder {
                 nal->i_first_mb, nal->i_last_mb);
 
       std::lock_guard lck{this_->m_client_notification_lock};
-      this_->m_client.on_nal_encoded(nal->p_payload, nal->i_payload);
+      // TODO: where do I get frame data?
+      this_->m_client.on_nal_encoded(
+          std::span{nal->p_payload, nal->p_payload + nal->i_payload},
+          EncodedFrameMetadata{.timestamp = user_data.captured_fmeta.timestamp,
+                               .sequence_num = 0});
     };
 
     // TODO: calculate this value correctly.
@@ -123,13 +137,6 @@ class EncoderImpl : public Encoder {
     picture->img.i_csp = param.i_csp;
     picture->img.i_plane = 1;
 
-    // From the x264 header:
-    // The opaque pointer is the opaque pointer from the input frame associated
-    // with this NAL unit. This helps distinguish between nalu_process calls
-    // from different sources,
-    //  e.g. if doing multiple encodes in one process.
-    picture->opaque = this;
-
     m_h = x264_encoder_open(&param);
     if (!m_h) {
       LOG_ERROR("Failed opening encoder");
@@ -156,7 +163,8 @@ class EncoderImpl : public Encoder {
     return true;
   }
 
-  virtual void process_frame(BufferView& buff) override {
+  virtual void process_frame(std::span<uint8_t> data,
+                             CapturedFrameMeta meta) override {
     m_client.on_frame_started();
 
     x264_picture_t pic_out{};
@@ -170,12 +178,19 @@ class EncoderImpl : public Encoder {
     const size_t height = 720;
 
     // Packed YUYV 422 has only one plain.
-    m_pic->img.plane[0] = reinterpret_cast<uint8_t*>(buff.start);
+    m_pic->img.plane[0] = data.data();
     m_pic->img.i_stride[0] = 1280 * 2;
 
     // TODO: what is PTS?
     m_pic->i_pts = m_frame;
     LOG_DEBUG("frame: {}", m_pic->i_pts);
+
+    // Allcate user data on stack of this thread,  the pointer will be valid
+    // for as long as x264_encoder_encode is working so we can avoid heap
+    // memory allocation.
+    FrameUserData user_data;
+
+    m_pic->opaque = &user_data;
 
     LOG_DEBUG("Start encode");
     int frame_size =
@@ -188,7 +203,8 @@ class EncoderImpl : public Encoder {
       m_client.on_frame_ended();
 
       LOG_DEBUG(
-          "Encoded frame {} (nals count: {}, nal payload size: {}, frame size: "
+          "Encoded frame {} (nals count: {}, nal payload size: {}, frame "
+          "size: "
           "{})",
           m_frame, i_nal, nal->i_payload, frame_size);
     }

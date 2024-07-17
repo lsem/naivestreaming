@@ -1,4 +1,6 @@
 
+#include <chrono>
+
 #include <asio/io_context.hpp>
 #include <asio/signal_set.hpp>
 
@@ -34,9 +36,10 @@ class StreamTransmitApp : public EncoderClient {
       cout << x << "\n";
     }
 
-    m_capture = make_video_capture(devs[0], [this](BufferView buff) {
+    m_capture = make_video_capture(devs[0], [this](std::span<uint8_t> data) {
       // WARNING: called from other thread!
-      m_encoder->process_frame(buff);
+      const auto ts = std::chrono::steady_clock::now();
+      m_encoder->process_frame(data, CapturedFrameMeta{.timestamp = ts});
     });
     if (!m_capture) {
       LOG_ERROR("Failed creating videocapture");
@@ -73,9 +76,11 @@ class StreamTransmitApp : public EncoderClient {
     LOG_DEBUG("Application: Frame finished");
   }
 
-  virtual void on_nal_encoded(const uint8_t* data, size_t data_size) override {
+  virtual void on_nal_encoded(std::span<const uint8_t> data,
+                              EncodedFrameMetadata meta) override {
     VideoPacket packet;
-    packet.nal_data.assign(data, data + data_size);
+    packet.nal_data.assign(data.begin(), data.end());
+    packet.timestamp = meta.timestamp;
     m_udp_transmit->transmit(std::move(packet));
   }
 

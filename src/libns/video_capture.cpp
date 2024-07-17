@@ -19,6 +19,13 @@
 
 LOG_MODULE_NAME("CAPTURE");
 
+namespace {
+struct BufferView {
+  void* start{};
+  size_t length{};
+};
+}  // namespace
+
 constexpr int V4L_BUFFERS_COUNT = 5;
 
 struct Video4LinuxVideoFormat : public AbstractVideoFormatSpec {
@@ -50,7 +57,7 @@ int xioctl(int fd, int request, void* arg) {
 class VideoCaptureImpl : public VideoCapture {
  public:
   explicit VideoCaptureImpl(std::filesystem::path video_dev_fpath,
-                            std::function<void(BufferView)> on_frame)
+                            std::function<void(std::span<uint8_t>)> on_frame)
       : m_video_dev_fpath(std::move(video_dev_fpath)),
         m_on_frame(std::move(on_frame)) {}
 
@@ -283,7 +290,9 @@ class VideoCaptureImpl : public VideoCapture {
 
     // LOG_DEBUG("Processing image from buffer ({}) ... (simulated) [{}]",
     //           buff.index, frame_num++);
-    m_on_frame(m_buffers[buff.index]);
+    const auto buffer_data = static_cast<uint8_t*>(m_buffers[buff.index].start);
+    const size_t buffer_data_size = m_buffers[buff.index].length;
+    m_on_frame({buffer_data, buffer_data + buffer_data_size});
 
     // After processing we put the buffer back with VIDIOC_QBUF so it can be
     // used.
@@ -428,7 +437,7 @@ class VideoCaptureImpl : public VideoCapture {
   unsigned m_allocated_buffers_count{};
   // Buffers we are sharing with v4l driver.
   std::vector<BufferView> m_buffers;
-  std::function<void(BufferView)> m_on_frame;
+  std::function<void(std::span<uint8_t>)> m_on_frame;
   std::jthread m_working_thread;
 };
 
@@ -449,7 +458,7 @@ std::vector<std::filesystem::path> enumerate_video4_linux_devices() {
 
 std::unique_ptr<VideoCapture> make_video_capture(
     std::filesystem::path p,
-    std::function<void(BufferView)> on_frame) {
+    std::function<void(std::span<uint8_t>)> on_frame) {
   auto impl =
       std::make_unique<VideoCaptureImpl>(std::move(p), std::move(on_frame));
   if (!impl->initialize()) {

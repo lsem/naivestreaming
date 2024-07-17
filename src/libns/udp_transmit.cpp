@@ -38,12 +38,13 @@ class UDP_TransmitImpl : public UDP_Transmit {
     header.extension_bit = 0;
     header.marker_bit = 0;
     header.payload_type = 78;
-    header.sequence_num = 300;
-    // TODO: this is probably wrong.
+    header.sequence_num = packet.sequence_num;
+
+    // 2^32 milliseconds is ~49 days. As long as we are interested only in
+    // difference between consecutive packets we should be fine.
     header.timestamp = static_cast<uint32_t>(
         std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::steady_clock::now() -
-            std::chrono::steady_clock::time_point{})
+            packet.timestamp - std::chrono::steady_clock::time_point{})
             .count());
 
     std::array<uint8_t, RTP_PacketHeader_Size> header_buff;

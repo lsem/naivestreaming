@@ -39,4 +39,4 @@ std::vector<std::filesystem::path> enumerate_video4_linux_devices();
 
 std::unique_ptr<VideoCapture> make_video_capture(
     std::filesystem::path p,
-    std::function<void(BufferView)> on_frame);
+    std::function<void(std::span<uint8_t>)> on_frame);
