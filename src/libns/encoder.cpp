@@ -12,7 +12,7 @@ struct EncoderImpl;
 namespace {
 struct FrameUserData {
   EncoderImpl* this_{};
-  CapturedFrameMeta captured_fmeta;
+  CapturedFrameMeta captured_meta;
 };
 }  // namespace
 
@@ -103,7 +103,7 @@ class EncoderImpl : public Encoder {
       // TODO: where do I get frame data?
       this_->m_client.on_nal_encoded(
           std::span{nal->p_payload, nal->p_payload + nal->i_payload},
-          NAL_Metadata{.timestamp = user_data.captured_fmeta.timestamp,
+          NAL_Metadata{.timestamp = user_data.captured_meta.timestamp,
                        .first_macroblock = nal->i_first_mb,
                        .last_macroblock = nal->i_last_mb});
     };
@@ -111,7 +111,6 @@ class EncoderImpl : public Encoder {
     // TODO: calculate this value correctly.
     m_nal_encoding_buff.resize(1920 * 1080 * 10);
 
-    //    if (x264_param_apply_profile(&param, "high422") < 0) {
     if (x264_param_apply_profile(&param, "high422") < 0) {
       LOG_ERROR("Failed applying profile (second)");
       return false;
@@ -133,7 +132,9 @@ class EncoderImpl : public Encoder {
     auto picture = std::make_unique<x264_picture_t>();
 
     x264_picture_init(picture.get());
-    // x264_picture_alloc(picture.get(), param.i_csp, param.i_width,
+    // TODO: I remember something was not working without picture alloc, check
+    // and remove ths comment. x264_picture_alloc(picture.get(), param.i_csp,
+    // param.i_width,
     //                    param.i_height);
     picture->img.i_csp = param.i_csp;
     picture->img.i_plane = 1;
@@ -189,8 +190,7 @@ class EncoderImpl : public Encoder {
     // Allcate user data on stack of this thread,  the pointer will be valid
     // for as long as x264_encoder_encode is working so we can avoid heap
     // memory allocation.
-    FrameUserData user_data;
-
+    FrameUserData user_data{.this_ = this, .captured_meta = std::move(meta)};
     m_pic->opaque = &user_data;
 
     LOG_DEBUG("Start encode");
