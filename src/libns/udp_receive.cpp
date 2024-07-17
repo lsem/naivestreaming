@@ -4,7 +4,7 @@
 #include "log.hpp"
 #include "rtp.hpp"
 
-LOG_MODULE_NAME("UDP_RECEIVE");
+LOG_MODULE_NAME("UDP_RX");
 
 using asio::ip::udp;
 

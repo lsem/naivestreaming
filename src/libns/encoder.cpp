@@ -86,8 +86,6 @@ class EncoderImpl : public Encoder {
       // sort of output queue or even into the socket buffer. Anyways, this
       // should be profiled before planning any optimization.
 
-      LOG_DEBUG("Produced NAL of type: {}", nal->i_type);
-
       auto& user_data = *static_cast<FrameUserData*>(opaque);
       auto this_ = user_data.this_;
 
@@ -96,8 +94,8 @@ class EncoderImpl : public Encoder {
 
       x264_nal_encode(h, this_->m_nal_encoding_buff.data(), nal);
 
-      LOG_DEBUG("sending NAL of {}, first MB: {}, last MB: {}", nal->i_payload,
-                nal->i_first_mb, nal->i_last_mb);
+      LOG_DEBUG("Produced NAL of type: {}, size: {}, first MB: {}, last MB: {}",
+                nal->i_type, nal->i_payload, nal->i_first_mb, nal->i_last_mb);
 
       std::lock_guard lck{this_->m_client_notification_lock};
       // TODO: where do I get frame data?

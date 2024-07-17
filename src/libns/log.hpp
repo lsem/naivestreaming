@@ -1,6 +1,7 @@
 #pragma once
 
 #include <format>
+#include <iomanip>
 #include <iostream>
 #include <mutex>
 #include <string_view>
@@ -9,6 +10,8 @@ namespace lsem_log_details {
 extern std::mutex g_lock;
 
 enum class LogLevel { debug, info, warning, error };
+
+constexpr auto MODULE_WIDTH = 10;
 
 class ModuleNameDefaultTag {};
 class ModuleNameSpecificTag : public ModuleNameDefaultTag {};
@@ -47,7 +50,8 @@ inline void print_log(LogLevel level,
 
   auto s = std::vformat(fmt, std::make_format_args(args...));
   std::lock_guard lck{g_lock};
-  std::cout << label_fn(level) << ": " << module_ << s << "\n";
+  std::cout << label_fn(level) << ": " << std::setw(MODULE_WIDTH) << module_
+            << s << "\n";
 }
 
 }  // namespace lsem_log_details
