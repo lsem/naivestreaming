@@ -102,3 +102,27 @@ TEST(rtp_tests, randomized_routrip_test) {
     ASSERT_EQ(maybe_deserialized_packet.value(), p);
   }
 }
+
+TEST(rtp_tests, randomized_payload_header_routrip_test) {
+  const auto seed = time(nullptr);
+  srand(seed);
+  SCOPED_TRACE(std::format("Seed: {}", seed));
+
+  for (int i = 0; i < 1000; ++i) {
+    RTP_PayloadHeader p;
+    p.nal_type =
+        static_cast<NAL_Type>((rand() % (static_cast<int>(NAL_Type::__end) -
+                                         static_cast<int>(NAL_Type::__begin))));
+    p.first_mb = rand() % 100;
+    p.last_mb = rand() % 100;
+
+    std::array<uint8_t, RTP_PacketHeader_Size> buff;
+
+    auto ec = serialize_payload_header(p, buff);
+    ASSERT_FALSE(ec);
+
+    auto maybe_deserialized_packet = deserialize_payload_header(buff);
+    ASSERT_TRUE(maybe_deserialized_packet.has_value());
+    ASSERT_EQ(maybe_deserialized_packet.value(), p);
+  }
+}

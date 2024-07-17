@@ -8,6 +8,7 @@
 #include <system_error>
 #include <vector>
 #include "defs.hpp"
+#include "types.hpp"
 
 // https://datatracker.ietf.org/doc/html/rfc3550#section-5.1
 
@@ -51,3 +52,21 @@ constexpr size_t RTP_PacketHeader_Size = 12;
 // RTP_HeaderExtensionFixed_Size + profile-specific extension length (can be
 // even variable length). See 3.5.1 for details.
 constexpr size_t RTP_HeaderExtensionFixed_Size = 4;
+
+// This is non-RTP header that from RTP point of view is hidden in payload.
+struct RTP_PayloadHeader {
+  NAL_Type nal_type{};
+  uint16_t first_mb{};
+  uint16_t last_mb;
+};
+
+constexpr size_t RTP_PayloadHeader_Size = 5;
+
+std::ostream& operator<<(std::ostream& os, const RTP_PayloadHeader& h);
+
+bool operator==(const RTP_PayloadHeader& lhs, const RTP_PayloadHeader& rhs);
+
+std::error_code serialize_payload_header(const RTP_PayloadHeader& ph,
+                                         std::span<uint8_t> buffer);
+expected<RTP_PayloadHeader> deserialize_payload_header(
+    std::span<const uint8_t>);

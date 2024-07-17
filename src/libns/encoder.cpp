@@ -14,6 +14,35 @@ struct FrameUserData {
   EncoderImpl* this_{};
   CapturedFrameMeta captured_meta;
 };
+
+// We can static cast but it is safer in the long term and in general more
+// correct to have honest mapping.
+NAL_Type map_x264_nal_type_to_internal(int unit) {
+  switch (unit) {
+    case NAL_SLICE:
+      return NAL_Type::slice;
+    case NAL_SLICE_DPA:
+      return NAL_Type::slice_dpa;
+    case NAL_SLICE_DPB:
+      return NAL_Type::slice_dpb;
+    case NAL_SLICE_DPC:
+      return NAL_Type::slice_dpc;
+    case NAL_SLICE_IDR:
+      return NAL_Type::slice_idr;
+    case NAL_SEI:
+      return NAL_Type::sei;
+    case NAL_SPS:
+      return NAL_Type::sps;
+    case NAL_PPS:
+      return NAL_Type::pps;
+    case NAL_AUD:
+      return NAL_Type::aud;
+    case NAL_FILLER:
+      return NAL_Type::filler;
+    default:
+      return NAL_Type::unknown;
+  }
+}
 }  // namespace
 
 class EncoderImpl : public Encoder {
@@ -98,10 +127,19 @@ class EncoderImpl : public Encoder {
                 nal->i_type, nal->i_payload, nal->i_first_mb, nal->i_last_mb);
 
       std::lock_guard lck{this_->m_client_notification_lock};
-      // TODO: where do I get frame data?
+
+      // 2^32 milliseconds is ~49 days. As long as we are interested only in
+      // difference between consecutive packets we should be fine.
+      const auto timestamp = static_cast<uint32_t>(
+          std::chrono::duration_cast<std::chrono::milliseconds>(
+              user_data.captured_meta.timestamp -
+              std::chrono::steady_clock::time_point{})
+              .count());
+
       this_->m_client.on_nal_encoded(
           std::span{nal->p_payload, nal->p_payload + nal->i_payload},
-          NAL_Metadata{.timestamp = user_data.captured_meta.timestamp,
+          NAL_Metadata{.timestamp = timestamp,
+                       .nal_type = map_x264_nal_type_to_internal(nal->i_type),
                        .first_macroblock = nal->i_first_mb,
                        .last_macroblock = nal->i_last_mb});
     };

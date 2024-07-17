@@ -1,6 +1,6 @@
 #########################################################
 # ns_common library
-add_library(ns_common log.hpp log.cpp types.hpp rtp.hpp rtp.cpp defs.hpp)
+add_library(ns_common log.hpp log.cpp types.hpp types.cpp rtp.hpp rtp.cpp defs.hpp)
 add_library(ns::common ALIAS ns_common)
 target_include_directories(ns_common PUBLIC .)
 target_link_libraries(ns_common PUBLIC tl::expected)

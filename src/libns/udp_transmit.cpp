@@ -39,28 +39,35 @@ class UDP_TransmitImpl : public UDP_Transmit {
     header.marker_bit = 0;
     header.payload_type = 78;
     header.sequence_num = m_sequence_num++;
-
-    // 2^32 milliseconds is ~49 days. As long as we are interested only in
-    // difference between consecutive packets we should be fine.
-    header.timestamp = static_cast<uint32_t>(
-        std::chrono::duration_cast<std::chrono::milliseconds>(
-            packet.timestamp - std::chrono::steady_clock::time_point{})
-            .count());
-
-    // TODO: encode first_macroblock and last_macroblock into a packet.
-    // Probably, we can use extension for this purpose or additional payload
-    // header.
+    header.timestamp = packet.nal_meta.timestamp;
 
     std::array<uint8_t, RTP_PacketHeader_Size> header_buff;
 
     if (auto ec = serialize_rtp_header_to(header, header_buff); ec) {
-      LOG_ERROR("Failed serializing packet, ignoring: {}", ec.message());
+      LOG_ERROR("Failed serializing packet: {}", ec.message());
       return;
     }
+
+    RTP_PayloadHeader payload_header;
+    payload_header.nal_type = packet.nal_meta.nal_type;
+    payload_header.first_mb = packet.nal_meta.first_macroblock;
+    payload_header.last_mb = packet.nal_meta.last_macroblock;
+
+    std::array<uint8_t, RTP_PayloadHeader_Size> payload_header_buff;
+
+    if (auto ec = serialize_payload_header(payload_header, payload_header_buff);
+        ec) {
+      LOG_ERROR("Failed serializing payload header: {}", ec.message());
+      return;
+    }
+
+    // 2x2 bytes for macroblocks + 1 byte for nal type. 5 additional bytes in
+    // total: 12 + 5 = 17 bytes header.
 
     LOG_DEBUG("header_buff[0]: {}", header_buff[0]);
 
     std::vector<asio::const_buffer> buffers{asio::buffer(header_buff),
+                                            asio::buffer(payload_header_buff),
                                             asio::buffer(packet.nal_data)};
     std::error_code ec;
     udp::endpoint endpoint{asio::ip::address::from_string("127.0.0.1"), m_port};

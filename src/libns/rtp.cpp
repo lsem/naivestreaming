@@ -159,3 +159,72 @@ std::ostream& operator<<(std::ostream& os, const RTP_PacketHeader& p) {
      << ", ssrc: " << p.ssrc << "}";
   return os;
 }
+
+std::ostream& operator<<(std::ostream& os, const RTP_PayloadHeader& h) {
+  os << "RTP_PayloadHeader{nal_type: " << h.nal_type
+     << ", first_mb: " << h.first_mb << ", last_mb: " << h.last_mb << "}";
+  return os;
+}
+
+namespace {
+auto make_tie(const RTP_PayloadHeader& p) {
+  return std::tie(p.nal_type, p.first_mb, p.last_mb);
+}
+}  // namespace
+
+bool operator==(const RTP_PayloadHeader& lhs, const RTP_PayloadHeader& rhs) {
+  return make_tie(lhs) == make_tie(rhs);
+}
+
+std::error_code serialize_payload_header(const RTP_PayloadHeader& ph,
+                                         std::span<uint8_t> buffer) {
+  static_assert(RTP_PayloadHeader_Size == 5);
+
+  if (buffer.size() < RTP_PayloadHeader_Size) {
+    LOG_ERROR("Minimum buffer size for payload rtp header is {}, there is: {}",
+              RTP_PayloadHeader_Size, buffer.size());
+    return make_error_code(std::errc::invalid_argument);
+  }
+
+  buffer[0] = static_cast<uint8_t>(ph.nal_type);
+  {
+    uint16_t n_first_mb = hton(ph.first_mb);
+    buffer[1] = n_first_mb & 0x00FF;
+    buffer[2] = n_first_mb >> 8;
+  }
+  {
+    uint16_t n_last_mb = hton(ph.last_mb);
+    buffer[3] = n_last_mb & 0x00FF;
+    buffer[4] = n_last_mb >> 8;
+  }
+
+  return {};
+}
+
+expected<RTP_PayloadHeader> deserialize_payload_header(
+    std::span<const uint8_t> data) {
+  static_assert(RTP_PayloadHeader_Size == 5);
+
+  if (data.size() < RTP_PayloadHeader_Size) {
+    LOG_ERROR("rtp payload header cannot be smaller than {} bytes, there is {}",
+              RTP_PayloadHeader_Size, data.size());
+    return tl::unexpected(make_error_code(std::errc::invalid_argument));
+  }
+
+  RTP_PayloadHeader new_payload_header;
+
+  new_payload_header.nal_type = static_cast<NAL_Type>(data[0]);
+
+  {
+    const uint16_t n_first_mb =
+        static_cast<uint16_t>(data[1]) | static_cast<uint16_t>(data[2]) << 8;
+    new_payload_header.first_mb = ntoh(n_first_mb);
+  }
+  {
+    const uint16_t n_last_mb =
+        static_cast<uint16_t>(data[3]) | static_cast<uint16_t>(data[4]) << 8;
+    new_payload_header.last_mb = ntoh(n_last_mb);
+  }
+
+  return new_payload_header;
+}

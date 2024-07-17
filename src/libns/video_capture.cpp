@@ -164,6 +164,7 @@ class VideoCaptureImpl : public VideoCapture {
       // result.back()->basic.width = 100;
       // result.back()->basic.height = 200;
 
+      // Frame sizes
       struct v4l2_frmsizeenum frmsize {};
       frmsize.pixel_format = fmtdesc.pixelformat;
       frmsize.index = 0;
@@ -182,6 +183,25 @@ class VideoCaptureImpl : public VideoCapture {
         }
         sep = ", ";
         frmsize.index++;
+
+        // Frame intervals
+        LOG_DEBUG("Frame intervals:");
+        struct v4l2_frmivalenum frame_interval;
+        while (ioctl(m_v4l_fd, VIDIOC_ENUM_FRAMEINTERVALS, &frame_interval) >=
+               0) {
+          LOG_DEBUG("Frame interval type: {}", frame_interval.type);
+          if (frame_interval.type == V4L2_FRMIVAL_TYPE_DISCRETE) {
+            frame_interval.discrete;
+          } else if (frame_interval.type == V4L2_FRMIVAL_TYPE_CONTINUOUS) {
+            // ..
+          } else if (frame_interval.type == V4L2_FRMIVAL_TYPE_STEPWISE) {
+            auto& sw = frame_interval.stepwise;
+            LOG_DEBUG("DISCRETE:  MIN: {}/{}, MAX: {}/{}, STEP: {}/{}",
+                      sw.min.numerator, sw.min.denominator, sw.max.numerator,
+                      sw.max.denominator, sw.step.numerator,
+                      sw.step.denominator);
+          }
+        }
       }
       LOG_DEBUG("Frame sizes: {}", frame_sizes_s);
     }

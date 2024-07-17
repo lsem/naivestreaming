@@ -91,16 +91,44 @@ class UDP_ReceiveImpl : public UDP_Receive {
               return;
             }
 
-            std::span<const uint8_t> payload{
-                m_buffer.begin() + RTP_PacketHeader_Size, m_buffer.end()};
+            std::span<const uint8_t> payload_header_data{
+                m_buffer.begin() + RTP_PacketHeader_Size,
+                m_buffer.begin() + RTP_PacketHeader_Size +
+                    RTP_PayloadHeader_Size};
+            auto maybe_payload_header =
+                deserialize_payload_header(payload_header_data);
 
-            LOG_DEBUG("Got something that looks like a header");
+            if (!maybe_payload_header.has_value()) {
+              LOG_ERROR("Got data that cannot be RTP payload header: {}",
+                        maybe_payload_header.error().message());
+              receive_next();
+              return;
+            }
+            auto& payload_header = *maybe_payload_header;
 
-            VideoPacket packet{.nal_data = std::vector<uint8_t>{payload.begin(),
-                                                                payload.end()}};
+            std::span<const uint8_t> payload_data{m_buffer.begin() +
+                                                      RTP_PacketHeader_Size +
+                                                      RTP_PayloadHeader_Size,
+                                                  m_buffer.end()};
+
+            VideoPacket packet;
+            packet.nal_data =
+                std::vector<uint8_t>{payload_data.begin(), payload_data.end()};
+            packet.nal_meta.nal_type = payload_header.nal_type;
+            packet.nal_meta.first_macroblock = payload_header.first_mb;
+            packet.nal_meta.last_macroblock = payload_header.last_mb;
+            packet.nal_meta.timestamp = rtp_header.timestamp;
 
             // TODO: packets should be reordered by sequence level. There should
             // also be a timeout.
+
+            LOG_DEBUG(
+                "Got a packet. NAL type: {}, first_mb: {}, last_mb: {}, "
+                "sequence_num: {}, timestamp: {}",
+                static_cast<int>(packet.nal_meta.nal_type),
+                packet.nal_meta.first_macroblock,
+                packet.nal_meta.last_macroblock, rtp_header.sequence_num,
+                packet.nal_meta.timestamp);
 
             m_listener->on_packet_received(std::move(packet));
           }
