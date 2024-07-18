@@ -96,7 +96,7 @@ expected<RTP_PacketHeader> deserialize_rtp_header_from(
   if (data.size() < 12) {
     LOG_ERROR("rtp header cannot be smaller than 12 bytes, there is {}",
               data.size());
-    return tl::unexpected(make_error_code(std::errc::invalid_argument));
+    return unexpected(make_error_code(std::errc::invalid_argument));
   }
 
   RTP_PacketHeader new_header;
@@ -208,7 +208,7 @@ expected<RTP_PayloadHeader> deserialize_payload_header(
   if (data.size() < RTP_PayloadHeader_Size) {
     LOG_ERROR("rtp payload header cannot be smaller than {} bytes, there is {}",
               RTP_PayloadHeader_Size, data.size());
-    return tl::unexpected(make_error_code(std::errc::invalid_argument));
+    return unexpected(make_error_code(std::errc::invalid_argument));
   }
 
   RTP_PayloadHeader new_payload_header;

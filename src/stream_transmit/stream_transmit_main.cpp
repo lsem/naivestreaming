@@ -37,6 +37,15 @@ class StreamTransmitApp : public EncoderClient {
     }
 
     m_capture = make_video_capture(devs[0], [this](std::span<uint8_t> data) {
+      auto now = std::chrono::steady_clock::now();
+      if (now - m_previous_sample_ts >= 1s) {
+        LOG_DEBUG("Capture FPS: {}", m_frames_captured);
+        m_frames_captured = 0;
+        m_previous_sample_ts = now;
+      } else {
+        m_frames_captured++;
+      }
+
       // WARNING: called from other thread!
       const auto ts = std::chrono::steady_clock::now();
       m_encoder->process_frame(data, CapturedFrameMeta{.timestamp = ts});
@@ -106,6 +115,8 @@ class StreamTransmitApp : public EncoderClient {
   std::unique_ptr<Encoder> m_encoder;
   std::unique_ptr<VideoCapture> m_capture;
   std::unique_ptr<UDP_Transmit> m_udp_transmit;
+  std::chrono::steady_clock::time_point m_previous_sample_ts{};
+  int m_frames_captured{};
 };
 
 int main() {

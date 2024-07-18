@@ -130,6 +130,17 @@ class UDP_ReceiveImpl : public UDP_Receive {
                 packet.nal_meta.last_macroblock, rtp_header.sequence_num,
                 packet.nal_meta.timestamp);
 
+            if (m_prev_seq_num == -1) {
+              // first one
+              m_prev_seq_num = rtp_header.sequence_num;
+            } else {
+              if (m_prev_seq_num + 1 != rtp_header.sequence_num) {
+                LOG_ERROR("Error, missed packet {}", m_prev_seq_num + 1);
+                assert(false);
+              }
+              m_prev_seq_num = rtp_header.sequence_num;
+            }
+
             m_listener->on_packet_received(std::move(packet));
           }
           receive_next();
@@ -144,6 +155,7 @@ class UDP_ReceiveImpl : public UDP_Receive {
   udp::endpoint m_remote_endpoint;
   std::vector<uint8_t> m_buffer;
   UDP_ReceiveListener* m_listener{};
+  int m_prev_seq_num = -1;
 };
 
 std::unique_ptr<UDP_Receive> make_udp_receive(asio::io_context& ctx, int port) {

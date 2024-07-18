@@ -175,33 +175,50 @@ class VideoCaptureImpl : public VideoCapture {
           frame_sizes_s += sep + std::format("{}x{}", frmsize.discrete.width,
                                              frmsize.discrete.height);
         } else if (frmsize.type == V4L2_FRMSIZE_TYPE_STEPWISE) {
-          frame_sizes_s +=
-              sep + std::format("{}x{} (stepwise)", frmsize.discrete.width,
-                                frmsize.discrete.height);
+          auto this_size =
+              std::format("{}x{} (stepwise)", frmsize.discrete.width,
+                          frmsize.discrete.height);
+          frame_sizes_s += sep + this_size;
+          LOG_DEBUG("{}", this_size);
         } else {
           LOG_WARNING("Other framesize type");
         }
+
+        if (frmsize.type == V4L2_FRMSIZE_TYPE_DISCRETE) {
+          // Frame intervals
+          LOG_DEBUG("Frame intervals for size {}x{}: ", frmsize.discrete.width,
+                    frmsize.discrete.height);
+          struct v4l2_frmivalenum frame_interval {
+            0
+          };
+          frame_interval.index = 0;
+          frame_interval.pixel_format = fmtdesc.pixelformat;
+          frame_interval.width = frmsize.discrete.width;
+          frame_interval.height = frmsize.discrete.height;
+
+          std::string intervals_str;
+          while (ioctl(m_v4l_fd, VIDIOC_ENUM_FRAMEINTERVALS, &frame_interval) ==
+                 0) {
+            if (frame_interval.type == V4L2_FRMIVAL_TYPE_DISCRETE) {
+              LOG_DEBUG("DISCRETE: {}/{}", frame_interval.discrete.numerator,
+                        frame_interval.discrete.denominator);
+              // Accroding to the docs ot makes sense to increase index only for
+              // discrete type.
+              frame_interval.index++;
+            } else if (frame_interval.type == V4L2_FRMIVAL_TYPE_CONTINUOUS) {
+              LOG_DEBUG("CONTINOUS");
+            } else if (frame_interval.type == V4L2_FRMIVAL_TYPE_STEPWISE) {
+              auto& sw = frame_interval.stepwise;
+              LOG_DEBUG("STEPWISE:  MIN: {}/{}, MAX: {}/{}, STEP: {}/{}",
+                        sw.min.numerator, sw.min.denominator, sw.max.numerator,
+                        sw.max.denominator, sw.step.numerator,
+                        sw.step.denominator);
+            }
+          }
+
+        }  // if discrete
         sep = ", ";
         frmsize.index++;
-
-        // Frame intervals
-        LOG_DEBUG("Frame intervals:");
-        struct v4l2_frmivalenum frame_interval;
-        while (ioctl(m_v4l_fd, VIDIOC_ENUM_FRAMEINTERVALS, &frame_interval) >=
-               0) {
-          LOG_DEBUG("Frame interval type: {}", frame_interval.type);
-          if (frame_interval.type == V4L2_FRMIVAL_TYPE_DISCRETE) {
-            frame_interval.discrete;
-          } else if (frame_interval.type == V4L2_FRMIVAL_TYPE_CONTINUOUS) {
-            // ..
-          } else if (frame_interval.type == V4L2_FRMIVAL_TYPE_STEPWISE) {
-            auto& sw = frame_interval.stepwise;
-            LOG_DEBUG("DISCRETE:  MIN: {}/{}, MAX: {}/{}, STEP: {}/{}",
-                      sw.min.numerator, sw.min.denominator, sw.max.numerator,
-                      sw.max.denominator, sw.step.numerator,
-                      sw.step.denominator);
-          }
-        }
       }
       LOG_DEBUG("Frame sizes: {}", frame_sizes_s);
     }
