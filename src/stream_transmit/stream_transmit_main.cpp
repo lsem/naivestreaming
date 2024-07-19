@@ -15,6 +15,27 @@ LOG_MODULE_NAME("TNSM_APP")
 
 using namespace std;
 
+class FPS_Counter {
+ public:
+  explicit FPS_Counter(std::string tag) : m_tag(tag) {}
+
+  void take_sample() {
+    auto now = std::chrono::steady_clock::now();
+    if (now - m_prev_sample_ts >= 1s) {
+      m_prev_sample_ts = now;
+      LOG_INFO("{}: {} FPS", m_tag, m_frames_captured.load());
+      m_frames_captured = 0;
+    } else {
+      m_frames_captured++;
+    }
+  }
+
+ private:
+  std::string m_tag;
+  std::chrono::steady_clock::time_point m_prev_sample_ts{};
+  std::atomic<int> m_frames_captured{};
+};
+
 class StreamTransmitApp : public EncoderClient {
  public:
   explicit StreamTransmitApp(asio::io_context& ctx) : m_ctx(ctx) {}
@@ -37,14 +58,7 @@ class StreamTransmitApp : public EncoderClient {
     }
 
     m_capture = make_video_capture(devs[0], [this](std::span<uint8_t> data) {
-      auto now = std::chrono::steady_clock::now();
-      if (now - m_previous_sample_ts >= 1s) {
-        LOG_DEBUG("Capture FPS: {}", m_frames_captured);
-        m_frames_captured = 0;
-        m_previous_sample_ts = now;
-      } else {
-        m_frames_captured++;
-      }
+      m_capture_fps.take_sample();
 
       // WARNING: called from other thread!
       const auto ts = std::chrono::steady_clock::now();
@@ -83,6 +97,7 @@ class StreamTransmitApp : public EncoderClient {
 
   virtual void on_frame_ended() override {
     LOG_DEBUG("Application: Frame finished");
+    m_encode_fps.take_sample();
   }
 
   virtual void on_nal_encoded(std::span<const uint8_t> data,
@@ -115,8 +130,8 @@ class StreamTransmitApp : public EncoderClient {
   std::unique_ptr<Encoder> m_encoder;
   std::unique_ptr<VideoCapture> m_capture;
   std::unique_ptr<UDP_Transmit> m_udp_transmit;
-  std::chrono::steady_clock::time_point m_previous_sample_ts{};
-  int m_frames_captured{};
+  FPS_Counter m_capture_fps{"Capture"};
+  FPS_Counter m_encode_fps{"Encoder"};
 };
 
 int main() {

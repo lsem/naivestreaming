@@ -155,7 +155,7 @@ class UDP_ReceiveImpl : public UDP_Receive {
   udp::endpoint m_remote_endpoint;
   std::vector<uint8_t> m_buffer;
   UDP_ReceiveListener* m_listener{};
-  int m_prev_seq_num = -1;
+  int m_prev_seq_num{-1};
 };
 
 std::unique_ptr<UDP_Receive> make_udp_receive(asio::io_context& ctx, int port) {
