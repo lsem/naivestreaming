@@ -37,7 +37,7 @@ add_library(ns_decoder
 add_library(ns::decoder ALIAS ns_decoder)
 target_include_directories(ns_decoder PUBLIC .)
 target_link_libraries(ns_decoder
-  PUBLIC asio::asio PRIVATE ns_common ffmpeg::avfamily)
+  PUBLIC asio::asio PRIVATE ns_common PUBLIC ffmpeg::avfamily)
 
 add_executable(ns_tests tests/rtp_tests.cpp)
 target_link_libraries(ns_tests

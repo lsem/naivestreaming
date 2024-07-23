@@ -1,8 +1,7 @@
 #include "types.hpp"
 
-namespace {
-std::string nal_type_to_string(NAL_Type unit) {
-  switch (unit) {
+std::string to_string(NAL_Type nal_unit) {
+  switch (nal_unit) {
     case NAL_Type::unknown:
       return "unknown";
     case NAL_Type::slice:
@@ -29,10 +28,7 @@ std::string nal_type_to_string(NAL_Type unit) {
       return "unknown";
   }
 }
-
-}  // namespace
-
 std::ostream& operator<<(std::ostream& os, NAL_Type v) {
-  os << nal_type_to_string(v);
+  os << to_string(v);
   return os;
 }

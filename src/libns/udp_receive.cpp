@@ -111,6 +111,9 @@ class UDP_ReceiveImpl : public UDP_Receive {
                                                       RTP_PayloadHeader_Size,
                                                   m_buffer.end()};
 
+            LOG_DEBUG("Got a packet of NAL type: {}",
+                      to_string(payload_header.nal_type));
+
             VideoPacket packet;
             packet.nal_data =
                 std::vector<uint8_t>{payload_data.begin(), payload_data.end()};
@@ -136,7 +139,8 @@ class UDP_ReceiveImpl : public UDP_Receive {
             } else {
               if (m_prev_seq_num + 1 != rtp_header.sequence_num) {
                 LOG_ERROR("Error, missed packet {}", m_prev_seq_num + 1);
-                assert(false);
+                // TODO: start here working on handling missing packets.
+                assert(false && "Missed packet");
               }
               m_prev_seq_num = rtp_header.sequence_num;
             }

@@ -30,6 +30,7 @@ enum class NAL_Type : uint8_t {
   __end
 };
 
+std::string to_string(NAL_Type v);
 std::ostream& operator<<(std::ostream& os, NAL_Type v);
 
 // Encoder may produce some frame metadata related to both particular NAL or a
