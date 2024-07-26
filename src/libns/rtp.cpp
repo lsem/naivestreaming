@@ -178,7 +178,7 @@ bool operator==(const RTP_PayloadHeader& lhs, const RTP_PayloadHeader& rhs) {
 
 std::error_code serialize_payload_header(const RTP_PayloadHeader& ph,
                                          std::span<uint8_t> buffer) {
-  static_assert(RTP_PayloadHeader_Size == 5);
+  static_assert(RTP_PayloadHeader_Size == 7);
 
   if (buffer.size() < RTP_PayloadHeader_Size) {
     LOG_ERROR("Minimum buffer size for payload rtp header is {}, there is: {}",
@@ -197,13 +197,18 @@ std::error_code serialize_payload_header(const RTP_PayloadHeader& ph,
     buffer[3] = n_last_mb & 0x00FF;
     buffer[4] = n_last_mb >> 8;
   }
+  {
+    uint16_t n_flags = hton(ph.flags);
+    buffer[5] = n_flags & 0x00FF;
+    buffer[6] = n_flags >> 8;
+  }
 
   return {};
 }
 
 expected<RTP_PayloadHeader> deserialize_payload_header(
     std::span<const uint8_t> data) {
-  static_assert(RTP_PayloadHeader_Size == 5);
+  static_assert(RTP_PayloadHeader_Size == 7);
 
   if (data.size() < RTP_PayloadHeader_Size) {
     LOG_ERROR("rtp payload header cannot be smaller than {} bytes, there is {}",
@@ -224,6 +229,11 @@ expected<RTP_PayloadHeader> deserialize_payload_header(
     const uint16_t n_last_mb =
         static_cast<uint16_t>(data[3]) | static_cast<uint16_t>(data[4]) << 8;
     new_payload_header.last_mb = ntoh(n_last_mb);
+  }
+  {
+    const uint16_t n_flags =
+        static_cast<uint16_t>(data[3]) | static_cast<uint16_t>(data[4]) << 8;
+    new_payload_header.flags = ntoh(n_flags);
   }
 
   return new_payload_header;

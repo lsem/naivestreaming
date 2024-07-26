@@ -39,3 +39,38 @@ https://github.com/IENT/YUView
 
 Very important note from x264 developer on real-time streaming capabilities of x264
 https://web.archive.org/web/20150421033553/http://x264dev.multimedia.cx/archives/249
+
+Understanding Rate Control Modes (x264, x265, vpx)
+https://slhck.info/video/2017/03/01/rate-control.html
+
+H.264 encoding guide
+https://www.avidemux.org/admWiki/doku.php?id=tutorial:h.264
+
+H.264/AVC 4x4 Transform and Quantization
+https://www.vcodex.com/h264avc-4x4-transform-and-quantization/
+
+Process of H.264 encoding -- intra inter prediction, macroblock, frame type...
+https://www.youtube.com/watch?v=ZXXDXZfEcAQ&ab_channel=AlbertZhu
+
+Video Coding Basics - How is this so efficient?
+https://www.youtube.com/watch?v=LDeL7-49qm4&ab_channel=ChristianFeldmann
+
+Interesting request on Stack Overflow:
+https://stackoverflow.com/questions/50682518/replacing-av-read-frame-to-reduce-delay
+
+This is my problem but of different flavor (I have different symtomps):
+https://stackoverflow.com/questions/50682518/replacing-av-read-frame-to-reduce-delay
+The solutin reported by author is here:
+https://github.com/Genymobile/scrcpy/pull/646
+
+# ALSA sound example
+https://github.com/ebachard/Linux_Alsa_Audio_Record/blob/master/src/alsa_record.cpp
+
+# A guide through the linux sound API jungle
+https://0pointer.de/blog/projects/guide-to-sound-apis
+
+# On decoding with other deocoders
+// https://ffmpeg.org/doxygen/trunk/group__lavf__misc.html#gae2645941f2dc779c307eb6314fd39f10
+// https://stackoverflow.com/questions/3493742/problem-to-decode-h264-video-over-rtp-with-ffmpeg-libavcodec
+// https://stackoverflow.com/questions/6014904/h264-frame-viewer
+

@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 include(ExternalProject)
 
-set(compilers_override CC=${CMAKE_C_COMPILER} CXX=${CMAKE_CXX_COMPILER})
+set(compilers_override CC=${CMAKE_C_COMPILER} CXX=${CMAKE_CXX_COMPILER} CXXFLAGS="-Og")
 set(superbuild_prefix ${CMAKE_INSTALL_PREFIX})
 set(libdir lib)
 set(libdir_abs_path ${superbuild_prefix}/${libdir})
@@ -16,7 +16,7 @@ ExternalProject_Add(external_x264
   UPDATE_DISCONNECTED true
   CONFIGURE_HANDLED_BY_BUILD true
   CONFIGURE_COMMAND  
-  ${CMAKE_COMMAND} -E env ${compilers_override} <SOURCE_DIR>/configure --prefix=${superbuild_prefix}
+  ${CMAKE_COMMAND} -E env ${compilers_override} <SOURCE_DIR>/configure --prefix=${superbuild_prefix} --enable-debug
   BUILD_COMMAND
   ${make_cmd} -j4
   INSTALL_COMMAND
@@ -24,6 +24,7 @@ ExternalProject_Add(external_x264
 )
 set(libx264_libname ${CMAKE_STATIC_LIBRARY_PREFIX}x264${CMAKE_STATIC_LIBRARY_SUFFIX})
 add_library(libx264 INTERFACE)
+add_dependencies(libx264 external_x264)
 target_link_directories(libx264 INTERFACE ${libdir_abs_path})
 target_link_libraries(libx264 INTERFACE ${libx264_libname})
 target_include_directories(libx264 INTERFACE ${superbuild_prefix}/include/)

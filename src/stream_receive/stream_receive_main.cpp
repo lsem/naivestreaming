@@ -1,5 +1,4 @@
 #include "mainwindow.h"
-
 #include <QApplication>
 #include <asio/io_context.hpp>
 #include <cstdlib>

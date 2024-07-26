@@ -1,6 +1,8 @@
 #include "decoder.hpp"
 
+#include <signal.h>
 #include <cassert>
+
 #include "log.hpp"
 
 LOG_MODULE_NAME("DECODER");
@@ -8,11 +10,6 @@ LOG_MODULE_NAME("DECODER");
 extern "C" {
 #include <libavcodec/avcodec.h>
 }
-
-// TODO:
-// https://ffmpeg.org/doxygen/trunk/group__lavf__misc.html#gae2645941f2dc779c307eb6314fd39f10
-// https://stackoverflow.com/questions/3493742/problem-to-decode-h264-video-over-rtp-with-ffmpeg-libavcodec
-// https://stackoverflow.com/questions/6014904/h264-frame-viewer
 
 class DecoderImpl : public Decoder {
  public:
@@ -37,8 +34,6 @@ class DecoderImpl : public Decoder {
       return false;
     }
 
-    // TODO: study this example more:
-    // https://docs.ros.org/en/kinetic/api/bebop_driver/html/bebop__video__decoder_8cpp_source.html
     // TODO: add checks.
     m_codec_ctx = avcodec_alloc_context3(m_codec);
     if (!m_codec_ctx) {
@@ -47,7 +42,8 @@ class DecoderImpl : public Decoder {
     }
 
     // TODO: I can't see the effect of this. Check.
-    m_codec_ctx->flags2 |= AV_CODEC_FLAG2_CHUNKS;
+    // m_codec_ctx->flags2 |= AV_CODEC_FLAG2_CHUNKS;
+    // m_codec_ctx->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 
     // Because we are going to draw our data on our own and we want to have only
     // one implementation we need to select format. Otherwise it will be
@@ -86,21 +82,24 @@ class DecoderImpl : public Decoder {
     }
   }
 
-  virtual void decode_packet(VideoPacket p) override {
+  bool decode_packet_impl(std::optional<VideoPacket> maybe_p) {
+    // TODO: check for minimum number of bytes!
+
+    auto& p = *maybe_p;
     LOG_DEBUG("Parsing packet of size {} bytes", p.nal_data.size());
 
-    // TODO: check for minimum number of bytes!
-    p.nal_data.resize(p.nal_data.size() + AV_INPUT_BUFFER_PADDING_SIZE);
-    const unsigned char* data = p.nal_data.data();
     const size_t data_size = p.nal_data.size();
+    p.nal_data.resize(p.nal_data.size() + AV_INPUT_BUFFER_PADDING_SIZE);
+    const uint8_t* data = p.nal_data.data();
 
     int ret = av_parser_parse2(m_parser_ctx, m_codec_ctx, &m_packet->data,
                                &m_packet->size, data, data_size, AV_NOPTS_VALUE,
                                AV_NOPTS_VALUE, 0);
+    LOG_DEBUG("ret: {}", ret);
 
     if (m_packet->size == 0) {
       LOG_DEBUG("Not a full packet yet, skipping");
-      return;
+      return false;
     }
 
     LOG_DEBUG("Reassempled full packet, the size is: {}", m_packet->size);
@@ -109,7 +108,7 @@ class DecoderImpl : public Decoder {
     if (ret < 0) {
       LOG_ERROR("Failed sending packet for decoding: {}", ret);
       // TODO: needs to be reset?
-      return;
+      return false;
     }
 
     while (ret >= 0) {
@@ -137,6 +136,12 @@ class DecoderImpl : public Decoder {
         m_listener.on_frame(std::move(frame));
       }
     }
+
+    return true;
+  }
+
+  virtual void decode_packet(VideoPacket p) override {
+    decode_packet_impl(std::move(p));
   }
 
  private:

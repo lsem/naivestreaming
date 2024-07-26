@@ -113,8 +113,9 @@ TEST(rtp_tests, randomized_payload_header_routrip_test) {
     p.nal_type =
         static_cast<NAL_Type>((rand() % (static_cast<int>(NAL_Type::__end) -
                                          static_cast<int>(NAL_Type::__begin))));
-    p.first_mb = rand() % 100;
-    p.last_mb = rand() % 100;
+    p.first_mb = rand() % 65535;
+    p.last_mb = rand() % 65535;
+    p.flags = rand() % 65535;
 
     std::array<uint8_t, RTP_PacketHeader_Size> buff;
 

@@ -106,10 +106,11 @@ class UDP_ReceiveImpl : public UDP_Receive {
             }
             auto& payload_header = *maybe_payload_header;
 
-            std::span<const uint8_t> payload_data{m_buffer.begin() +
-                                                      RTP_PacketHeader_Size +
-                                                      RTP_PayloadHeader_Size,
-                                                  m_buffer.end()};
+            // TODO: ensure that bytes_ceived is enough.
+            std::span<const uint8_t> payload_data{
+                m_buffer.begin() + RTP_PacketHeader_Size +
+                    RTP_PayloadHeader_Size,
+                m_buffer.begin() + bytes_received};
 
             LOG_DEBUG("Got a packet of NAL type: {}",
                       to_string(payload_header.nal_type));
@@ -128,10 +129,15 @@ class UDP_ReceiveImpl : public UDP_Receive {
             LOG_DEBUG(
                 "Got a packet. NAL type: {}, first_mb: {}, last_mb: {}, "
                 "sequence_num: {}, timestamp: {}",
-                static_cast<int>(packet.nal_meta.nal_type),
+                to_string(packet.nal_meta.nal_type),
                 packet.nal_meta.first_macroblock,
                 packet.nal_meta.last_macroblock, rtp_header.sequence_num,
                 packet.nal_meta.timestamp);
+
+            if (packet.nal_meta.nal_type != NAL_Type::slice) {
+              LOG_DEBUG("NON SLICE NAL: {}",
+                        to_string(packet.nal_meta.nal_type));
+            }
 
             if (m_prev_seq_num == -1) {
               // first one
@@ -140,11 +146,13 @@ class UDP_ReceiveImpl : public UDP_Receive {
               if (m_prev_seq_num + 1 != rtp_header.sequence_num) {
                 LOG_ERROR("Error, missed packet {}", m_prev_seq_num + 1);
                 // TODO: start here working on handling missing packets.
-                assert(false && "Missed packet");
+		//                assert(false && "Missed packet");
               }
               m_prev_seq_num = rtp_header.sequence_num;
             }
 
+            LOG_DEBUG("Passing packet of size {} to the listener",
+                      packet.nal_data.size());
             m_listener->on_packet_received(std::move(packet));
           }
           receive_next();

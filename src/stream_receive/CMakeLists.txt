@@ -61,5 +61,5 @@ if(QT_VERSION_MAJOR EQUAL 6)
 endif()
 
 
-target_compile_options(stream_receive PUBLIC "-fsanitize=address")
-target_link_options(stream_receive PUBLIC "-fsanitize=address")
+#target_compile_options(stream_receive PUBLIC "-fsanitize=address")
+#target_link_options(stream_receive PUBLIC "-fsanitize=address")

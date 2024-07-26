@@ -78,28 +78,19 @@ class EncoderImpl : public Encoder {
     LOG_WARNING("encoder input format is hardcoded");
     LOG_WARNING("dimensions hardcoded");
 
-    // QUESTIONS:
-    //    without max-NAL settings we will need to split NALS into 1500b pieces.
-    //    The problem with this is that when we loose one fragment we loose
-    //    entire NAL. Better would be to have frame split into some regions so
-    //    different regions are encoded into different NALs.
-
-    // #ifdef USE_BASELINE_PROFILE
-
     param.i_csp = X264_CSP_YUYV;  // yuyv 4:2:2 packed
     // TODO: take it from settings.
     param.i_width = 1280;
     param.i_height = 720;
-    param.i_fps_num = 25;
+    param.i_fps_num = 10;
     param.i_fps_den = 1;
-    // 3    param.b_vfr_input = 1;
+    //    param.b_vfr_input = 1;
     param.b_intra_refresh = 1;
     param.b_repeat_headers = 1;
     param.b_annexb = 1;
     param.i_frame_total = 0;
 
-    //    param.i_keyint_max = 25;
-
+    // param.i_keyint_max = 25;
     // param.rc.i_rc_method = X264_RC_CRF;
     // param.rc.f_rf_constant = 22;
     // param.rc.i_vbv_max_bitrate = 2000;
@@ -138,10 +129,12 @@ class EncoderImpl : public Encoder {
 
       this_->m_client.on_nal_encoded(
           std::span{nal->p_payload, nal->p_payload + nal->i_payload},
-          NAL_Metadata{.timestamp = timestamp,
-                       .nal_type = map_x264_nal_type_to_internal(nal->i_type),
-                       .first_macroblock = nal->i_first_mb,
-                       .last_macroblock = nal->i_last_mb});
+          NAL_Metadata{
+              .timestamp = timestamp,
+              .nal_type = map_x264_nal_type_to_internal(nal->i_type),
+              .first_macroblock = static_cast<uint16_t>(nal->i_first_mb),
+              .last_macroblock = static_cast<uint16_t>(nal->i_last_mb),
+              .flags = 0});
     };
 
     // TODO: calculate this value correctly.
@@ -242,8 +235,8 @@ class EncoderImpl : public Encoder {
       LOG_DEBUG(
           "Encoded frame {} (nals count: {}, nal payload size: {}, frame "
           "size: "
-          "{})",
-          m_frame, i_nal, nal->i_payload, frame_size);
+          "{}, PSNR: {})",
+          m_frame, i_nal, nal->i_payload, frame_size, pic_out.prop.f_psnr_avg);
     }
 
     m_frame++;

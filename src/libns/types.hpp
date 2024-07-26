@@ -33,6 +33,8 @@ enum class NAL_Type : uint8_t {
 std::string to_string(NAL_Type v);
 std::ostream& operator<<(std::ostream& os, NAL_Type v);
 
+enum class NAL_MetadataFlags { last_frame = 0x01 };
+
 // Encoder may produce some frame metadata related to both particular NAL or a
 // frame.
 struct NAL_Metadata {
@@ -41,8 +43,10 @@ struct NAL_Metadata {
   // If NAL caries slice, macroblock range (first, last) will indicate what
   // macroblocks are caried by this NAL. Supposed to be used by receiver to sort
   // NALs before feeding to decoder.
-  int first_macroblock{};
-  int last_macroblock{};
+
+  uint16_t first_macroblock{};
+  uint16_t last_macroblock{};
+  uint16_t flags{};
 };
 
 enum class PixelFormat { YUV422_packed, YUV422_planar };

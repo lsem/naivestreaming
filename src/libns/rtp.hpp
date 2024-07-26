@@ -57,10 +57,11 @@ constexpr size_t RTP_HeaderExtensionFixed_Size = 4;
 struct RTP_PayloadHeader {
   NAL_Type nal_type{};
   uint16_t first_mb{};
-  uint16_t last_mb;
+  uint16_t last_mb{};
+  uint16_t flags{};
 };
 
-constexpr size_t RTP_PayloadHeader_Size = 5;
+constexpr size_t RTP_PayloadHeader_Size = 7;
 
 std::ostream& operator<<(std::ostream& os, const RTP_PayloadHeader& h);
 

@@ -39,7 +39,16 @@ void MainWindow::stop() {}
 
 void MainWindow::on_packet_received(VideoPacket p) /*override*/ {
   m_packets_received++;
-  m_decoder->decode_packet(std::move(p));
+
+  m_decoder->decode_packet(p);
+
+  if (p.nal_meta.nal_type == NAL_Type::slice &&
+      p.nal_meta.first_macroblock == 0) {
+    m_decoder->decode_packet(p);
+  }
+
+  // TODO: we don't need to update on every packet received, but rathar on each
+  // frame.
   update();
 }
 
@@ -116,7 +125,8 @@ void MainWindow::paintEvent(QPaintEvent* event) /*override*/ {
   // srand(42);
   // QBrush brush{QColor{135, 135, 135, 100}};
   // for (int i = 0; i < m_packets_received; ++i) {
-  //   painter.fillRect(QRectF(rand() % width(), rand() % height(), 5, 5), brush);
+  //   painter.fillRect(QRectF(rand() % width(), rand() % height(), 5, 5),
+  //   brush);
   // }
 
   painter.end();

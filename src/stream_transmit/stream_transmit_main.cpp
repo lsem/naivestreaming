@@ -1,9 +1,12 @@
 
 #include <chrono>
 
+#include <asio.hpp>
 #include <asio/io_context.hpp>
 #include <asio/signal_set.hpp>
+#include <asio/strand.hpp>
 
+#include "decoder.hpp"
 #include "encoder.hpp"
 #include "log.hpp"
 #include "types.hpp"
@@ -36,9 +39,13 @@ class FPS_Counter {
   std::atomic<int> m_frames_captured{};
 };
 
-class StreamTransmitApp : public EncoderClient {
+class StreamTransmitApp : public EncoderClient, public DecoderListener {
  public:
   explicit StreamTransmitApp(asio::io_context& ctx) : m_ctx(ctx) {}
+
+  virtual void on_frame(const VideoFrame& f) override {
+    LOG_DEBUG("Got video frame");
+  }
 
   bool initialize() {
     m_encoder = make_encoder(*this);
@@ -136,6 +143,21 @@ class StreamTransmitApp : public EncoderClient {
 
 int main() {
   asio::io_context ctx;
+
+  // Even though we have multothreaded pulling from eventloop all the handlers
+  // below will run sequentially on a single thread. I would expect that typical
+  // use case would be to have all operations for one socket to have its own
+  // strand.
+  asio::io_context::strand strand1{ctx};
+  asio::post(strand1, [] {});
+  asio::post(strand1, [] {});
+  asio::post(strand1, [] {});
+  asio::post(strand1, [] {});
+
+  asio::strand<asio::io_context::executor_type> strand_ =
+      asio::make_strand(ctx);
+  asio::steady_timer t{strand_};
+  asio::post(strand_, [] {});
 
   StreamTransmitApp app{ctx};
   if (!app.initialize()) {
